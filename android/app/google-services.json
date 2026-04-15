@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "80004535",
+    "project_id": "homescapes-card",
+    "storage_bucket": "homescapes-card.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:80004535:android:0c9880eda9e5957fa29432",
+        "android_client_info": {
+          "package_name": "com.mungyu.homescapes"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCmTu7fIxwr2rLD-hERC4xdxBuXn1nD7gQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
