@@ -1,0 +1,152 @@
+# Uncomment this line to define a global platform for your project
+platform :ios, '13.0'
+require 'fileutils'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+use_modular_headers!
+
+target 'Runner' do
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+def ensure_grpc_modulemap_alias(pods_root)
+  grpc_src_dir = File.join(pods_root, 'Headers', 'Private', 'gRPC-Core', 'grpc')
+  grpc_alias_dir = File.join(pods_root, 'Headers', 'Private', 'grpc')
+  grpc_modulemap_src = File.join(pods_root, 'Target Support Files', 'gRPC-Core', 'gRPC-Core.modulemap')
+  grpc_modulemap_dst = File.join(grpc_src_dir, 'gRPC-Core.modulemap')
+  return unless File.exist?(grpc_modulemap_src)
+
+  FileUtils.mkdir_p(grpc_src_dir)
+  FileUtils.rm_f(grpc_modulemap_dst)
+  FileUtils.cp(grpc_modulemap_src, grpc_modulemap_dst)
+  FileUtils.rm_rf(grpc_alias_dir)
+  FileUtils.ln_s(grpc_src_dir, grpc_alias_dir)
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+
+    target.build_configurations.each do |config|
+      # Keep all pods at iOS 13 to satisfy modern plugin requirements and avoid
+      # unsupported old simulator deployment targets in Xcode 26.
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+
+      # Ensure abseil headers resolve correctly with modular headers.
+      header_paths = config.build_settings['HEADER_SEARCH_PATHS']
+      header_paths = ['$(inherited)'] if header_paths.nil?
+      header_paths = [header_paths] unless header_paths.is_a?(Array)
+      abseil_public_headers = '$(PODS_ROOT)/Headers/Public/abseil'
+      header_paths << abseil_public_headers unless header_paths.include?(abseil_public_headers)
+      config.build_settings['HEADER_SEARCH_PATHS'] = header_paths
+
+      # FirebaseFirestoreInternal is linked as a static library in this setup.
+      # Remove stale weak-framework linker entry that breaks simulator links.
+      ldflags = config.build_settings['OTHER_LDFLAGS']
+      if ldflags.is_a?(Array)
+        cleaned = []
+        i = 0
+        while i < ldflags.length
+          if ldflags[i] == '-weak_framework' && ldflags[i + 1] == 'FirebaseFirestoreInternal'
+            i += 2
+            next
+          end
+          cleaned << ldflags[i]
+          i += 1
+        end
+        config.build_settings['OTHER_LDFLAGS'] = cleaned
+      elsif ldflags.is_a?(String)
+        config.build_settings['OTHER_LDFLAGS'] = ldflags
+          .gsub('-weak_framework "FirebaseFirestoreInternal"', '')
+          .gsub('-weak_framework FirebaseFirestoreInternal', '')
+      end
+    end
+
+    # Work around a BoringSSL-GRPC pod flag typo that Xcode interprets as
+    # unsupported '-G' on simulator builds.
+    next unless target.name == 'BoringSSL-GRPC'
+
+    target.source_build_phase.files.each do |file|
+      next unless file.settings&.dig('COMPILER_FLAGS')
+
+      flags = file.settings['COMPILER_FLAGS'].split
+      flags.reject! { |flag| flag == '-GCC_WARN_INHIBIT_ALL_WARNINGS' }
+      file.settings['COMPILER_FLAGS'] = flags.join(' ')
+    end
+  end
+
+  # Xcode 26 + older gRPC-Core can fail parsing this `template` keyword usage.
+  grpc_patches = [
+    File.join(installer.sandbox.root.to_s, 'gRPC-Core', 'src', 'core', 'lib', 'promise', 'detail', 'basic_seq.h'),
+    File.join(installer.sandbox.root.to_s, 'gRPC-C++', 'src', 'core', 'lib', 'promise', 'detail', 'basic_seq.h')
+  ]
+  grpc_patches.each do |grpc_patch|
+    next unless File.exist?(grpc_patch)
+
+    FileUtils.chmod('u+w', grpc_patch)
+    content = File.read(grpc_patch)
+    patched = content.gsub('Traits::template CallSeqFactory(', 'Traits::CallSeqFactory(')
+    File.write(grpc_patch, patched) if patched != content
+  end
+
+  # Patch Firebase CoreOnly umbrella header to avoid importing Swift bridging
+  # headers that may not exist under modular headers integration.
+  firebase_coreonly_header = File.join(installer.sandbox.root.to_s, 'Firebase', 'CoreOnly', 'Sources', 'Firebase.h')
+  if File.exist?(firebase_coreonly_header)
+    content = File.read(firebase_coreonly_header)
+    patched = content
+      .gsub('#if __has_include("FirebaseFunctions-umbrella.h")', '#if __has_include(<FirebaseFunctions/FirebaseFunctions-Swift.h>)')
+      .gsub('#if __has_include("FirebaseStorage-umbrella.h")', '#if __has_include(<FirebaseStorage/FirebaseStorage-Swift.h>)')
+    if patched != content
+      FileUtils.chmod('u+w', firebase_coreonly_header)
+      File.write(firebase_coreonly_header, patched)
+    end
+  end
+
+  # CocoaPods 1.16 can emit gRPC module map flags that point to
+  # Headers/Private/grpc/gRPC-Core.modulemap, but only gRPC-Core/grpc exists.
+  # Bridge that path so Xcode 26 can resolve the module map reliably.
+  ensure_grpc_modulemap_alias(installer.sandbox.root.to_s)
+
+  # Remove stale weak framework link entry generated for static FirestoreInternal.
+  runner_xcconfigs = Dir.glob(File.join(installer.sandbox.root.to_s, 'Target Support Files', 'Pods-Runner', 'Pods-Runner.*.xcconfig'))
+  runner_xcconfigs.each do |xcconfig_path|
+    content = File.read(xcconfig_path)
+    patched = content
+      .gsub('-weak_framework "FirebaseFirestoreInternal"', '')
+      .gsub('-weak_framework FirebaseFirestoreInternal', '')
+    File.write(xcconfig_path, patched) if patched != content
+  end
+end
+
+post_integrate do |installer|
+  ensure_grpc_modulemap_alias(installer.sandbox.root.to_s)
+end

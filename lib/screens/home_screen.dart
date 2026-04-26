@@ -15,6 +15,7 @@ import '../features/ads/data/repositories/bottom_sheet_ad_repository.dart';
 import '../features/ads/presentation/widgets/bottom_sheet_ad_widget.dart';
 import '../features/ads/utils/bottom_sheet_ad_storage.dart';
 import '../features/auth/services/social_custom_auth_service.dart';
+import '../features/cards/presentation/screens/card_catalog_screen.dart';
 import '../features/dialog_ads/data/models/dialog_ad_model.dart';
 import '../features/dialog_ads/data/repositories/dialog_ad_repository.dart';
 import '../features/dialog_ads/presentation/widgets/dialog_ad_widget.dart';
@@ -25,13 +26,11 @@ import '../utils/user_access_utils.dart';
 import '../widgets/common_widgets.dart';
 import 'feed_detail_screen.dart';
 import 'feed_screen.dart';
-import 'joy_screen.dart';
-import 'profile_screen.dart';
 import 'post_create_screen.dart';
+import 'profile_screen.dart';
 import 'search_screen.dart';
 import 'spot_detail_screen.dart';
 import 'notification_screen.dart';
-import 'spot_screen.dart';
 import 'user_screen.dart';
 import '../features/community/data/repositories/community_repository.dart';
 import '../features/community/data/repositories/community_like_repository.dart';
@@ -115,13 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
     '디자이너',
   ];
 
-  final List<String> _categories = const [
-    _allCategory,
-    '자유',
-    '궁금해요',
-    '오늘의 루트',
-    '꿀팁',
-  ];
+  final List<String> _categories = const [_allCategory, '자유', '궁금해요', '꿀팁'];
 
   final SpotService _spotService = SpotService(
     repository: SpotRepositoryImpl(),
@@ -144,16 +137,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isCommunityLoading = true;
   String? _communityLoadError;
 
-  List<FacilityMapNode> _mapNodes = const [];
-  Map<String, FacilityMapNode> _mapNodeByName = const {};
-  bool _isSpotLoading = true;
-  String? _spotLoadError;
-
   String _selectedCategory = _allCategory;
   int _selectedBottomTab = 0;
   int _profileRefreshTick = 0;
-  int _bufferMin = 10;
-  String _selectedMapFloor = '전체';
   bool _isMySettingsOpen = false;
   bool _isAuthInitializing = true;
   bool _isAuthLoading = false;
@@ -405,97 +391,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadSpotData() async {
-    setState(() {
-      _isSpotLoading = true;
-      _spotLoadError = null;
-    });
-
     try {
       final spots = await _spotService.getSpotsCollection();
       final todaySlotsDoc = await _spotService.getTodaySlotsDoc(
         now: DateTime.now(),
       );
-      final mapNodes = await _spotService.getMapNodes();
       if (!mounted) return;
       setState(() {
         _spotsCollection = spots;
         _todaySlotsDoc = todaySlotsDoc;
-        _mapNodes = mapNodes;
-        _mapNodeByName = {for (final node in _mapNodes) node.name: node};
       });
     } catch (e) {
       _logAuth('Spot data load failed: $e');
-      if (!mounted) return;
-      setState(() {
-        _spotLoadError = e.toString();
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isSpotLoading = false;
-        });
-      }
     }
-  }
-
-  Widget _buildSpotBody({
-    required DateTime now,
-    required List<FacilitySlot> slots,
-  }) {
-    if (_isSpotLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_spotLoadError != null) {
-      return RefreshIndicator(
-        onRefresh: _loadSpotData,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-          children: [
-            const Center(
-              child: Text(
-                '체험관 데이터를 불러오지 못했습니다.',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF2D3342),
-                  fontSize: 18,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _spotLoadError!,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF7A8190)),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _loadSpotData,
-              child: const Text('다시 시도'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return SpotScreen(
-      now: now,
-      dayId: _todaySlotsDoc.dayId,
-      slots: slots,
-      bufferMin: _bufferMin,
-      selectedMapFloor: _selectedMapFloor,
-      mapNodeByName: _mapNodeByName,
-      onBufferChanged: (value) {
-        setState(() => _bufferMin = value);
-      },
-      onMapFloorChanged: (floor) {
-        setState(() => _selectedMapFloor = floor);
-      },
-      onSpotTap: (slot) => _openSpotDetail(slot, now),
-      onSearchTap: _openSearch,
-      onNotificationTap: _openNotification,
-      hasSpotData: (slot) => _findSpotBySlot(slot) != null,
-    );
   }
 
   Future<void> _loadCommunityData() async {
@@ -986,7 +894,7 @@ class _HomeScreenState extends State<HomeScreen> {
         .then((updated) {
           if (updated == true) {
             unawaited(_loadCommunityData());
-            if (!mounted || _selectedBottomTab != 3) return;
+            if (!mounted || _selectedBottomTab != 2) return;
             setState(() {
               _profileRefreshTick++;
             });
@@ -1218,7 +1126,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openCreatePostFlow() async {
     if (_auth?.currentUser == null) {
       setState(() {
-        _selectedBottomTab = 3;
+        _selectedBottomTab = 2;
         _isMySettingsOpen = false;
       });
       ScaffoldMessenger.of(
@@ -1355,7 +1263,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final status = FacilityHelpers.statusFor(
       slot: slot,
-      bufferMin: _bufferMin,
+      bufferMin: 10,
       now: now,
     );
     final remaining = FacilityHelpers.remainingSlots(slot: slot, now: now);
@@ -1668,29 +1576,71 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildComingSoonBody() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Column(
+      children: [
+        AppTopHeader(
+          title: '공사중',
+          onSearchTap: _openSearch,
+          onNotificationTap: _openNotification,
+        ),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 84,
+                    height: 84,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFED9A3A).withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.construction_rounded,
+                      size: 42,
+                      color: Color(0xFFED9A3A),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Text(
+                    '여러분의 아이디어로\n탭 기능이 완성됩니다.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: isDark
+                          ? const Color(0xFFF0F3F8)
+                          : const Color(0xFF181A21),
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      height: 1.28,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final slots = FacilityHelpers.buildCurrentSlots(
-      todaySlotsDoc: _todaySlotsDoc,
-      now: now,
-    );
     Widget body;
     switch (_selectedBottomTab) {
       case 0:
         body = _buildCommunityBody();
         break;
       case 1:
-        body = _buildSpotBody(now: now, slots: slots);
-        break;
-      case 2:
-        body = JoyScreen(
+        body = CardCatalogScreen(
           onSearchTap: _openSearch,
           onNotificationTap: _openNotification,
         );
         break;
-      case 3:
-      default:
+      case 2:
         body = ProfileScreen(
           key: ValueKey<int>(_profileRefreshTick),
           isAuthInitializing: _isAuthInitializing,
@@ -1714,6 +1664,10 @@ class _HomeScreenState extends State<HomeScreen> {
           onThemeModeChanged: widget.onThemeModeChanged,
         );
         break;
+      case 3:
+      default:
+        body = _buildComingSoonBody();
+        break;
     }
 
     return PopScope(
@@ -1728,28 +1682,25 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Positioned.fill(child: body),
               Positioned(
-                left: 20,
-                right: 20,
+                left: 12,
+                right: 12,
                 bottom: 24,
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 16),
-                        child: FloatingBottomNav(
-                          selectedIndex: _selectedBottomTab,
-                          onSelect: (index) {
-                            setState(() {
-                              _selectedBottomTab = index;
-                              if (index != 3) {
-                                _isMySettingsOpen = false;
-                              }
-                            });
-                          },
-                        ),
-                      ),
+                    FloatingBottomNav(
+                      selectedIndex: _selectedBottomTab,
+                      onSelect: (index) {
+                        setState(() {
+                          _selectedBottomTab = index;
+                          if (index != 2) {
+                            _isMySettingsOpen = false;
+                          }
+                        });
+                      },
                     ),
+                    const SizedBox(width: 12),
                     FloatingActionButton(
                       onPressed: _openCreatePostFlow,
                       backgroundColor: const Color(0xFFED9A3A),

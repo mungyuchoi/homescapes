@@ -27,6 +27,9 @@ dependencies:
   flutter_web_auth_2: ^5.0.1
   google_mobile_ads: ^5.3.1
 
+dependency_overrides:
+  google_sign_in_ios: 5.8.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -50,6 +53,6 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/img/app_icon.png"
+  image_path: "assets/img/icon/homescapes_helper_icon_512.png"
   remove_alpha_ios: true
   min_sdk_android: 21

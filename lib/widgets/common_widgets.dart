@@ -447,19 +447,19 @@ class FloatingBottomNav extends StatelessWidget {
       filledIcon: Icons.forum_rounded,
     ),
     (
-      label: '체험관',
-      outlinedIcon: Icons.location_on_outlined,
-      filledIcon: Icons.location_on,
+      label: '카드',
+      outlinedIcon: Icons.style_outlined,
+      filledIcon: Icons.style_rounded,
     ),
     (
-      label: '조이',
-      outlinedIcon: Icons.shopping_bag_outlined,
-      filledIcon: Icons.shopping_bag_rounded,
-    ),
-    (
-      label: 'MY',
+      label: '프로필',
       outlinedIcon: Icons.person_outline_rounded,
       filledIcon: Icons.person_rounded,
+    ),
+    (
+      label: '공사중',
+      outlinedIcon: Icons.construction_outlined,
+      filledIcon: Icons.construction_rounded,
     ),
   ];
 
@@ -496,10 +496,12 @@ class FloatingBottomNav extends StatelessWidget {
         ],
       ),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: List.generate(_items.length, (index) {
           final item = _items[index];
           final selected = index == selectedIndex;
-          return Expanded(
+          return SizedBox(
+            width: 52,
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
               onTap: () => onSelect(index),
