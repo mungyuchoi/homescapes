@@ -3,9 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/app_models.dart';
-import '../utils/ad_utils.dart';
 import '../utils/facility_helpers.dart';
-import '../widgets/app_banner_ad.dart';
 import '../widgets/common_widgets.dart';
 
 class SpotScreen extends StatelessWidget {
@@ -21,7 +19,6 @@ class SpotScreen extends StatelessWidget {
     required this.onMapFloorChanged,
     required this.onSpotTap,
     required this.onSearchTap,
-    required this.onNotificationTap,
     required this.hasSpotData,
   });
 
@@ -35,7 +32,6 @@ class SpotScreen extends StatelessWidget {
   final ValueChanged<String> onMapFloorChanged;
   final ValueChanged<FacilitySlot> onSpotTap;
   final VoidCallback onSearchTap;
-  final VoidCallback onNotificationTap;
   final bool Function(FacilitySlot slot) hasSpotData;
 
   @override
@@ -82,17 +78,7 @@ class SpotScreen extends StatelessWidget {
     return ListView(
       padding: EdgeInsets.zero,
       children: [
-        AppTopHeader(
-          title: '체험관',
-          onSearchTap: onSearchTap,
-          onNotificationTap: onNotificationTap,
-        ),
-        AppBannerAd(
-          adUnitId: AdUtils.spotTopAnchoredBannerAdUnitId,
-          type: AppBannerAdType.anchored,
-          margin: const EdgeInsets.fromLTRB(16, 6, 16, 10),
-          debugLabel: 'spotTopAnchored',
-        ),
+        AppTopHeader(title: '체험관', onSearchTap: onSearchTap),
         Container(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
           padding: const EdgeInsets.all(16),

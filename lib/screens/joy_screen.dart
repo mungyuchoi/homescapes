@@ -5,8 +5,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../utils/ad_utils.dart';
-import '../widgets/app_banner_ad.dart';
 import '../widgets/common_widgets.dart';
 
 const _naverBlogClientId = '4JrNi52IPPJPktn043ei';
@@ -15,14 +13,9 @@ const _naverBlogSearchQuery = '잡월드 어린이 체험관';
 const int _naverBlogPageSize = 10;
 
 class JoyScreen extends StatelessWidget {
-  const JoyScreen({
-    super.key,
-    required this.onSearchTap,
-    required this.onNotificationTap,
-  });
+  const JoyScreen({super.key, required this.onSearchTap});
 
   final VoidCallback onSearchTap;
-  final VoidCallback onNotificationTap;
 
   @override
   Widget build(BuildContext context) {
@@ -33,11 +26,7 @@ class JoyScreen extends StatelessWidget {
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
             SliverToBoxAdapter(
-              child: AppTopHeader(
-                title: '조이',
-                onSearchTap: onSearchTap,
-                onNotificationTap: onNotificationTap,
-              ),
+              child: AppTopHeader(title: '조이', onSearchTap: onSearchTap),
             ),
             SliverToBoxAdapter(
               child: Padding(
@@ -180,12 +169,6 @@ class _JoyUsageTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 2, 16, 170),
       children: [
-        AppBannerAd(
-          adUnitId: AdUtils.joyTabInlineBannerAdUnitId,
-          type: AppBannerAdType.inline,
-          margin: const EdgeInsets.only(bottom: 12),
-          debugLabel: 'joyTabInline',
-        ),
         const _GuideSectionTitle(text: '조이(JOY) 이용방법'),
         _GuideCard(
           isDark: isDark,
@@ -496,12 +479,6 @@ class _JoyBlogGuideTabState extends State<_JoyBlogGuideTab> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 2, 16, 170),
       children: [
-        AppBannerAd(
-          adUnitId: AdUtils.joyTabInlineBannerAdUnitId,
-          type: AppBannerAdType.inline,
-          margin: const EdgeInsets.only(bottom: 12),
-          debugLabel: 'joyTabInline',
-        ),
         const _GuideSectionTitle(text: '블로그 이용 안내'),
         const SizedBox(height: 4),
         if (_isLoadingInitial)
@@ -794,12 +771,6 @@ class _CertificateGuideTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 2, 16, 170),
       children: [
-        AppBannerAd(
-          adUnitId: AdUtils.joyTabInlineBannerAdUnitId,
-          type: AppBannerAdType.inline,
-          margin: const EdgeInsets.only(bottom: 12),
-          debugLabel: 'joyTabInline',
-        ),
         const _GuideSectionTitle(text: '수료증 활용 방법'),
         _GuideCard(
           isDark: isDark,
@@ -974,12 +945,6 @@ class _InterestTypeGuideTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 2, 16, 170),
       children: [
-        AppBannerAd(
-          adUnitId: AdUtils.joyTabInlineBannerAdUnitId,
-          type: AppBannerAdType.inline,
-          margin: const EdgeInsets.only(bottom: 12),
-          debugLabel: 'joyTabInline',
-        ),
         const _GuideSectionTitle(text: '탐험가이드(직업흥미 유형)'),
         _GuideCard(
           isDark: isDark,

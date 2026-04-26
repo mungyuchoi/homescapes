@@ -182,6 +182,12 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         photoUrl: photoUrl,
       );
 
+      await _syncMyPostAuthorProfile(
+        uid: user.uid,
+        displayName: profileId,
+        photoUrl: photoUrl,
+      );
+
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
@@ -193,6 +199,41 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       if (mounted) {
         setState(() => _isSaving = false);
       }
+    }
+  }
+
+  Future<void> _syncMyPostAuthorProfile({
+    required String uid,
+    required String displayName,
+    required String photoUrl,
+  }) async {
+    final normalizedUid = uid.trim();
+    if (normalizedUid.isEmpty) return;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('posts')
+        .where('author.uid', isEqualTo: normalizedUid)
+        .get();
+    if (snapshot.docs.isEmpty) return;
+
+    const batchLimit = 450;
+    final firestore = FirebaseFirestore.instance;
+    for (var start = 0; start < snapshot.docs.length; start += batchLimit) {
+      final end = start + batchLimit < snapshot.docs.length
+          ? start + batchLimit
+          : snapshot.docs.length;
+      final batch = firestore.batch();
+      for (final doc in snapshot.docs.sublist(start, end)) {
+        batch.set(doc.reference, {
+          'author': {
+            'uid': normalizedUid,
+            'displayName': displayName,
+            'photoURL': photoUrl,
+          },
+          'authorUpdatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+      await batch.commit();
     }
   }
 

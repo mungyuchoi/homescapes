@@ -16,7 +16,6 @@ class FeedScreen extends StatelessWidget {
     required this.likeCountByPostId,
     required this.onCategorySelected,
     required this.onSearchTap,
-    required this.onNotificationTap,
     required this.onPostTap,
     required this.onAuthorTap,
     required this.onRouteItemTap,
@@ -30,7 +29,6 @@ class FeedScreen extends StatelessWidget {
   final int Function(String postId, int fallback) likeCountByPostId;
   final ValueChanged<String> onCategorySelected;
   final VoidCallback onSearchTap;
-  final VoidCallback onNotificationTap;
   final ValueChanged<CommunityPost> onPostTap;
   final ValueChanged<CommunityPost> onAuthorTap;
   final ValueChanged<TodayRootItem> onRouteItemTap;
@@ -57,11 +55,7 @@ class FeedScreen extends StatelessWidget {
       padding: EdgeInsets.zero,
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
-        AppTopHeader(
-          title: '커뮤니티',
-          onSearchTap: onSearchTap,
-          onNotificationTap: onNotificationTap,
-        ),
+        AppTopHeader(title: '커뮤니티', onSearchTap: onSearchTap),
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
           child: SingleChildScrollView(

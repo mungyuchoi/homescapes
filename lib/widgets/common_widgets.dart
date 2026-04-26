@@ -7,13 +7,11 @@ class AppTopHeader extends StatelessWidget {
     super.key,
     required this.title,
     this.onTicketTap,
-    this.onNotificationTap,
     this.onSearchTap,
   });
 
   final String title;
   final VoidCallback? onTicketTap;
-  final VoidCallback? onNotificationTap;
   final VoidCallback? onSearchTap;
 
   @override
@@ -36,11 +34,6 @@ class AppTopHeader extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              HeaderActionButton(
-                icon: Icons.notifications_none_rounded,
-                onTap: onNotificationTap ?? () {},
-              ),
-              const SizedBox(width: 8),
               HeaderActionButton(
                 icon: Icons.search_rounded,
                 onTap: onSearchTap ?? () {},
@@ -467,7 +460,7 @@ class FloatingBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -501,7 +494,7 @@ class FloatingBottomNav extends StatelessWidget {
           final item = _items[index];
           final selected = index == selectedIndex;
           return SizedBox(
-            width: 52,
+            width: 60,
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
               onTap: () => onSelect(index),

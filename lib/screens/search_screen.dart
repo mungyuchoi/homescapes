@@ -7,9 +7,7 @@ import '../features/search/services/search_service.dart';
 import '../features/spot/data/repositories/spot_repository.dart';
 import '../features/spot/services/spot_service.dart';
 import '../models/app_models.dart';
-import '../utils/ad_utils.dart';
 import '../utils/facility_helpers.dart';
-import '../widgets/app_banner_ad.dart';
 import 'spot_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -300,7 +298,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     controller: _controller,
                     textInputAction: TextInputAction.search,
                     decoration: InputDecoration(
-                      hintText: '체험관 또는 키워드 검색',
+                      hintText: '키워드 검색',
                       border: OutlineInputBorder(
                         borderSide: BorderSide(color: _searchPrimaryColor),
                       ),
@@ -360,22 +358,18 @@ class _SearchScreenState extends State<SearchScreen> {
                       runSpacing: 8,
                       children: _recent
                           .map(
-                            (keyword) => ActionChip(
+                            (keyword) => InputChip(
                               label: Text(keyword),
                               onPressed: () => _onSearchSubmitted(keyword),
+                              onDeleted: () =>
+                                  _removeKeywordFromVisibleResults(keyword),
+                              deleteIcon: const Icon(Icons.close_rounded),
+                              deleteIconColor: const Color(0xFF9AA1AF),
                             ),
                           )
                           .toList(),
                     ),
                     const SizedBox(height: 14),
-                  ],
-                  if (_query.trim().isEmpty) ...[
-                    AppBannerAd(
-                      adUnitId: AdUtils.searchResultsInlineMidBannerAdUnitId,
-                      type: AppBannerAdType.inline,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      debugLabel: 'searchResultsInlineMid',
-                    ),
                   ],
                   Text(
                     _query.trim().isEmpty ? '인기 검색어' : '검색 결과',
@@ -383,8 +377,8 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                   const SizedBox(height: 10),
                   if (_results.isEmpty)
-                    const Text(
-                      '검색 결과가 없습니다.',
+                    Text(
+                      _query.trim().isEmpty ? '인기 검색어가 없습니다.' : '검색 결과가 없습니다.',
                       style: TextStyle(
                         color: Color(0xFF9AA1AF),
                         fontWeight: FontWeight.w600,
@@ -400,20 +394,6 @@ class _SearchScreenState extends State<SearchScreen> {
                               : Icons.search_rounded,
                         ),
                         title: Text(_results[index]),
-                        trailing: _query.trim().isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(
-                                  Icons.close_rounded,
-                                  color: Color(0xFF9AA1AF),
-                                ),
-                                tooltip: '삭제',
-                                onPressed: () async {
-                                  await _removeKeywordFromVisibleResults(
-                                    _results[index],
-                                  );
-                                },
-                              )
-                            : null,
                         onTap: () => _onSearchSubmitted(_results[index]),
                       ),
                   ],

@@ -6,14 +6,9 @@ import '../../data/models/card_catalog_models.dart';
 import '../../data/repositories/card_catalog_repository.dart';
 
 class CardCatalogScreen extends StatefulWidget {
-  const CardCatalogScreen({
-    super.key,
-    required this.onSearchTap,
-    required this.onNotificationTap,
-  });
+  const CardCatalogScreen({super.key, required this.onSearchTap});
 
   final VoidCallback onSearchTap;
-  final VoidCallback onNotificationTap;
 
   @override
   State<CardCatalogScreen> createState() => _CardCatalogScreenState();
@@ -150,11 +145,7 @@ class _CardCatalogScreenState extends State<CardCatalogScreen> {
     final season = _season;
     return Column(
       children: [
-        AppTopHeader(
-          title: '카드',
-          onSearchTap: widget.onSearchTap,
-          onNotificationTap: widget.onNotificationTap,
-        ),
+        AppTopHeader(title: '카드', onSearchTap: widget.onSearchTap),
         if (_isLoading)
           const Expanded(child: Center(child: CircularProgressIndicator()))
         else if (_loadError != null || season == null)

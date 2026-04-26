@@ -873,10 +873,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _openNotification() {
-    unawaited(_openNotificationScreen());
-  }
-
   Future<void> _openFeedDetail(CommunityPost post) {
     final spotOptions = _spotsCollection.values.toList()
       ..sort((a, b) => a.title.compareTo(b.title));
@@ -1174,6 +1170,61 @@ class _HomeScreenState extends State<HomeScreen> {
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(const SnackBar(content: Text('게시글이 작성되었습니다.')));
     unawaited(_loadCommunityData());
+  }
+
+  Future<void> _openIdeaChatFlow() async {
+    if (_auth?.currentUser == null) {
+      setState(() {
+        _selectedBottomTab = 2;
+        _isMySettingsOpen = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인 먼저 해주세요.')));
+      return;
+    }
+
+    final isRestricted = await UserAccessUtils.isCurrentUserRestricted();
+    if (isRestricted) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('이용금지된 회원입니다. 관리자에게 문의하세요.')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final bottomSystemInset = MediaQuery.of(
+          sheetContext,
+        ).viewPadding.bottom;
+        return FractionallySizedBox(
+          heightFactor: 0.86,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: bottomSystemInset),
+            child: _IdeaChatSheet(
+              firestore: _firestore,
+              auth: _auth ?? FirebaseAuth.instance,
+              onRequireLogin: () {
+                Navigator.of(sheetContext).pop();
+                if (!mounted) return;
+                setState(() {
+                  _selectedBottomTab = 2;
+                  _isMySettingsOpen = false;
+                });
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('로그인 먼저 해주세요.')));
+              },
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _openUserScreen(String uid) async {
@@ -1525,11 +1576,7 @@ class _HomeScreenState extends State<HomeScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
           children: [
-            AppTopHeader(
-              title: '커뮤니티',
-              onSearchTap: _openSearch,
-              onNotificationTap: _openNotification,
-            ),
+            AppTopHeader(title: '커뮤니티', onSearchTap: _openSearch),
             const SizedBox(height: 8),
             const Text(
               '커뮤니티 데이터를 불러오지 못했습니다.',
@@ -1568,7 +1615,6 @@ class _HomeScreenState extends State<HomeScreen> {
           setState(() => _selectedCategory = category);
         },
         onSearchTap: _openSearch,
-        onNotificationTap: _openNotification,
         onPostTap: _openFeedDetail,
         onAuthorTap: (post) => _openUserScreen(post.uid),
         onRouteItemTap: _openRouteSpotDetail,
@@ -1580,11 +1626,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
-        AppTopHeader(
-          title: '공사중',
-          onSearchTap: _openSearch,
-          onNotificationTap: _openNotification,
-        ),
+        AppTopHeader(title: '공사중', onSearchTap: _openSearch),
         Expanded(
           child: Center(
             child: Padding(
@@ -1618,6 +1660,27 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: 1.28,
                     ),
                   ),
+                  const SizedBox(height: 22),
+                  FilledButton.icon(
+                    onPressed: _openIdeaChatFlow,
+                    icon: const Icon(Icons.chat_bubble_rounded),
+                    label: const Text('아이디어 남기기'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFED9A3A),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 13,
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1635,10 +1698,7 @@ class _HomeScreenState extends State<HomeScreen> {
         body = _buildCommunityBody();
         break;
       case 1:
-        body = CardCatalogScreen(
-          onSearchTap: _openSearch,
-          onNotificationTap: _openNotification,
-        );
+        body = CardCatalogScreen(onSearchTap: _openSearch);
         break;
       case 2:
         body = ProfileScreen(
@@ -1658,7 +1718,6 @@ class _HomeScreenState extends State<HomeScreen> {
           onSignOut: _signOut,
           onWithdraw: _withdrawAccount,
           onSearchTap: _openSearch,
-          onNotificationTap: _openNotification,
           onMyPostTap: _openMyPostDetail,
           themeMode: widget.themeMode,
           onThemeModeChanged: widget.onThemeModeChanged,
@@ -1717,4 +1776,406 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
+
+class _IdeaChatSheet extends StatefulWidget {
+  const _IdeaChatSheet({
+    required this.firestore,
+    required this.auth,
+    required this.onRequireLogin,
+  });
+
+  final FirebaseFirestore firestore;
+  final FirebaseAuth auth;
+  final VoidCallback onRequireLogin;
+
+  @override
+  State<_IdeaChatSheet> createState() => _IdeaChatSheetState();
+}
+
+class _IdeaChatSheetState extends State<_IdeaChatSheet> {
+  static const _roomId = 'construction_tab';
+
+  final TextEditingController _controller = TextEditingController();
+  bool _isSending = false;
+
+  DocumentReference<Map<String, dynamic>> get _roomRef {
+    return widget.firestore.collection('ideas').doc(_roomId);
+  }
+
+  CollectionReference<Map<String, dynamic>> get _messageRef {
+    return _roomRef.collection('messages');
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<_IdeaAuthor?> _resolveAuthor() async {
+    final user = widget.auth.currentUser;
+    if (user == null) return null;
+
+    var displayName = (user.displayName ?? '').trim();
+    var photoURL = (user.photoURL ?? '').trim();
+    try {
+      final snapshot = await widget.firestore
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final data = snapshot.data();
+      final firestoreName = (data?['displayName'] as String? ?? '').trim();
+      final firestorePhoto = (data?['photoURL'] as String? ?? '').trim();
+      final firestorePhotoLegacy = (data?['photoUrl'] as String? ?? '').trim();
+      if (firestoreName.isNotEmpty) displayName = firestoreName;
+      if (firestorePhoto.isNotEmpty) {
+        photoURL = firestorePhoto;
+      } else if (firestorePhotoLegacy.isNotEmpty) {
+        photoURL = firestorePhotoLegacy;
+      }
+    } catch (error) {
+      debugPrint('[IdeaChat] profile resolve failed: $error');
+    }
+
+    if (displayName.isEmpty) {
+      displayName = (user.email ?? '').split('@').first.trim();
+    }
+    if (displayName.isEmpty) displayName = '익명';
+
+    return _IdeaAuthor(
+      uid: user.uid,
+      displayName: displayName,
+      photoURL: photoURL.isEmpty ? null : photoURL,
+    );
+  }
+
+  Future<void> _sendMessage() async {
+    if (_isSending) return;
+
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
+
+    final author = await _resolveAuthor();
+    if (author == null) {
+      widget.onRequireLogin();
+      return;
+    }
+
+    setState(() => _isSending = true);
+    final messageRef = _messageRef.doc();
+    final nowClient = DateTime.now().millisecondsSinceEpoch;
+
+    try {
+      final batch = widget.firestore.batch();
+      batch.set(_roomRef, {
+        'roomId': _roomId,
+        'title': '공사중 탭 아이디어',
+        'description': '공사중 탭 기능 제안을 나누는 오픈 채팅방',
+        'lastMessageText': text,
+        'lastMessageAuthorUid': author.uid,
+        'lastMessageAuthorName': author.displayName,
+        'lastMessageAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      batch.set(messageRef, {
+        'messageId': messageRef.id,
+        'roomId': _roomId,
+        'text': text,
+        'author': {
+          'uid': author.uid,
+          'displayName': author.displayName,
+          'photoURL': author.photoURL,
+        },
+        'uid': author.uid,
+        'userName': author.displayName,
+        'photoURL': author.photoURL,
+        'isDeleted': false,
+        'isHidden': false,
+        'createdAt': FieldValue.serverTimestamp(),
+        'createdAtClient': nowClient,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      await batch.commit();
+      _controller.clear();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('아이디어 전송에 실패했습니다: $e')));
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+    final myUid = widget.auth.currentUser?.uid;
+
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: Material(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            Container(
+              color: const Color(0xFFED9A3A),
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.tips_and_updates_rounded,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      '아이디어 채팅방',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close_rounded, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: _messageRef
+                    .orderBy('createdAt', descending: true)
+                    .limit(200)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return const Center(
+                      child: Text(
+                        '아이디어를 불러오지 못했습니다.',
+                        style: TextStyle(
+                          color: Color(0xFF767C8D),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    );
+                  }
+
+                  final docs = (snapshot.data?.docs ?? const []).where((doc) {
+                    final data = doc.data();
+                    return data['isDeleted'] != true &&
+                        data['isHidden'] != true;
+                  }).toList();
+                  if (docs.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        '아직 아이디어가 없어요.\n첫 의견을 남겨보세요!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFF767C8D),
+                          fontWeight: FontWeight.w700,
+                          height: 1.45,
+                        ),
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    reverse: true,
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                    itemCount: docs.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final data = docs[index].data();
+                      final author = _map(data['author']);
+                      final senderUid = _string(author['uid']).isNotEmpty
+                          ? _string(author['uid'])
+                          : _string(data['uid']);
+                      final isMine = myUid != null && senderUid == myUid;
+                      final name = _string(
+                        author['displayName'],
+                        fallback: _string(data['userName'], fallback: '익명'),
+                      );
+                      final message = _string(data['text']);
+                      final when =
+                          _toDateTime(data['createdAt']) ??
+                          _toDateTime(data['createdAtClient']);
+
+                      return Align(
+                        alignment: isMine
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 286),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isMine
+                                  ? const Color(0xFFFFF1E0)
+                                  : const Color(0xFFF4F6FA),
+                              borderRadius: BorderRadius.circular(13),
+                              border: Border.all(
+                                color: isMine
+                                    ? const Color(0xFFFFD7A5)
+                                    : const Color(0xFFE1E6F0),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name,
+                                  style: const TextStyle(
+                                    color: Color(0xFF4E5669),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  message,
+                                  style: const TextStyle(
+                                    color: Color(0xFF1E2230),
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.35,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  _formatTime(context, when),
+                                  style: const TextStyle(
+                                    color: Color(0xFF8A90A0),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Color(0xFFE7EBF2))),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      minLines: 1,
+                      maxLines: 4,
+                      textInputAction: TextInputAction.newline,
+                      decoration: InputDecoration(
+                        hintText: '아이디어를 입력하세요',
+                        filled: true,
+                        fillColor: const Color(0xFFF4F6FA),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: 44,
+                    width: 44,
+                    child: FilledButton(
+                      onPressed: _isSending ? null : _sendMessage,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFED9A3A),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: EdgeInsets.zero,
+                      ),
+                      child: _isSending
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.send_rounded, color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Map<String, dynamic> _map(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map((key, value) => MapEntry('$key', value));
+    }
+    return const {};
+  }
+
+  String _string(dynamic value, {String fallback = ''}) {
+    if (value == null) return fallback;
+    final parsed = value.toString().trim();
+    if (parsed.isEmpty) return fallback;
+    return parsed;
+  }
+
+  DateTime? _toDateTime(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+    final asString = value?.toString();
+    if (asString == null || asString.isEmpty) return null;
+    return DateTime.tryParse(asString);
+  }
+
+  String _formatTime(BuildContext context, DateTime? value) {
+    if (value == null) return '방금 전';
+    final local = value.toLocal();
+    final tod = TimeOfDay(hour: local.hour, minute: local.minute);
+    final timeLabel = MaterialLocalizations.of(
+      context,
+    ).formatTimeOfDay(tod, alwaysUse24HourFormat: false);
+    return '${local.month}/${local.day} $timeLabel';
+  }
+}
+
+class _IdeaAuthor {
+  const _IdeaAuthor({
+    required this.uid,
+    required this.displayName,
+    required this.photoURL,
+  });
+
+  final String uid;
+  final String displayName;
+  final String? photoURL;
 }

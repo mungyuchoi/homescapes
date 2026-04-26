@@ -3,7 +3,6 @@ import 'package:homescapes/features/spot/data/repositories/spot_repository.dart'
 
 import '../datasources/search_firestore_data_source.dart';
 import '../datasources/search_local_data_source.dart';
-import '../datasources/search_seed_data_source.dart';
 
 abstract class SearchRepository {
   Future<SearchData> fetchCachedSearchData();
@@ -19,17 +18,14 @@ abstract class SearchRepository {
 
 class SearchRepositoryImpl implements SearchRepository {
   SearchRepositoryImpl({
-    SearchSeedDataSource? seedDataSource,
     SearchFirestoreDataSource? firestoreDataSource,
     SearchLocalDataSource? localDataSource,
     SpotRepository? spotRepository,
-  }) : _seedDataSource = seedDataSource ?? const SearchSeedDataSource(),
-       _firestoreDataSource =
+  }) : _firestoreDataSource =
            firestoreDataSource ?? SearchFirestoreDataSource(),
        _localDataSource = localDataSource ?? const SearchLocalDataSource(),
        _spotRepository = spotRepository ?? const SpotRepositoryImpl();
 
-  final SearchSeedDataSource _seedDataSource;
   final SearchFirestoreDataSource _firestoreDataSource;
   final SearchLocalDataSource _localDataSource;
   final SpotRepository _spotRepository;
@@ -48,17 +44,9 @@ class SearchRepositoryImpl implements SearchRepository {
     }
 
     final recentKeywords = await _localDataSource.fetchRecentKeywords();
-    final cachedPopularKeywords = await _localDataSource
-        .fetchCachedPopularKeywords();
-    final seedData = await _seedDataSource.fetchSearchData();
-    final resolvedPopularKeywords = _resolvePopularKeywords(
-      remote: cachedPopularKeywords,
-      fallback: seedData.popularKeywords,
-      limit: 5,
-    );
 
     final resolved = SearchData(
-      popularKeywords: resolvedPopularKeywords,
+      popularKeywords: const <String>[],
       recentKeywords: recentKeywords,
     );
     _setCachedSearchData(resolved);
@@ -67,16 +55,13 @@ class SearchRepositoryImpl implements SearchRepository {
 
   @override
   Future<SearchData> fetchSearchData() async {
-    final seedData = await _seedDataSource.fetchSearchData();
     final popularKeywords = await _firestoreDataSource.fetchPopularKeywords(
       limit: 5,
     );
     final recentKeywords = await _localDataSource.fetchRecentKeywords();
-    final resolvedPopularKeywords = _resolvePopularKeywords(
-      remote: popularKeywords,
-      fallback: seedData.popularKeywords,
-      limit: 5,
-    );
+    final resolvedPopularKeywords = _deduplicateKeywords(
+      popularKeywords,
+    ).take(5).toList(growable: false);
 
     final resolved = SearchData(
       popularKeywords: resolvedPopularKeywords,
@@ -158,7 +143,8 @@ class SearchRepositoryImpl implements SearchRepository {
           recentKeywords: cached.recentKeywords
               .where(
                 (item) =>
-                    _normalizeKeyword(item) != _normalizeKeyword(trimmedKeyword),
+                    _normalizeKeyword(item) !=
+                    _normalizeKeyword(trimmedKeyword),
               )
               .toList(growable: false),
         ),
@@ -200,18 +186,6 @@ class SearchRepositoryImpl implements SearchRepository {
       deduplicated.add(keyword);
     }
     return deduplicated;
-  }
-
-  List<String> _resolvePopularKeywords({
-    required List<String> remote,
-    required List<String> fallback,
-    required int limit,
-  }) {
-    final merged = _deduplicateKeywords([...remote, ...fallback]);
-    if (merged.length <= limit) {
-      return merged;
-    }
-    return merged.take(limit).toList(growable: false);
   }
 
   List<String> _prependRecentKeyword({

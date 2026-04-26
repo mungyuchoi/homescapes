@@ -35,7 +35,6 @@ class ProfileScreen extends StatefulWidget {
     required this.onMyPostTap,
     required this.themeMode,
     required this.onThemeModeChanged,
-    required this.onNotificationTap,
   });
 
   final bool isAuthInitializing;
@@ -56,7 +55,6 @@ class ProfileScreen extends StatefulWidget {
   final Future<void> Function(String postId) onMyPostTap;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
-  final VoidCallback onNotificationTap;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -482,10 +480,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     MyTopIcon(
                       icon: Icons.search_rounded,
                       onTap: widget.onSearchTap,
-                    ),
-                    MyTopIcon(
-                      icon: Icons.notifications_none_rounded,
-                      onTap: widget.onNotificationTap,
                     ),
                     MyTopIcon(
                       icon: Icons.settings_outlined,

@@ -70,7 +70,6 @@ class ProfileSeedDataSource {
       ProfileSettingSection(
         title: '설정',
         items: [
-          (Icons.notifications_none_rounded, '알림 설정'),
           (Icons.assignment_outlined, '서비스 이용 동의'),
           (Icons.lightbulb_outline_rounded, '화면 설정'),
         ],
