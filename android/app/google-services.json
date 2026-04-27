@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "80004535-qgem5asla3bijbephj3s413qefsiqhfh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mungyu.homescapes",
+            "certificate_hash": "5b1c533956ce273381e32cb9f2a56a16f1122dad"
+          }
+        },
+        {
           "client_id": "80004535-u5fq2l6o922pm5pjnakncrkk7qadn5g0.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
