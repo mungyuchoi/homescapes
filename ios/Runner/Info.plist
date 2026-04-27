@@ -6,6 +6,8 @@
 	<true/>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-8549606613390169~2495687465</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>프로필 사진 설정과 게시글 이미지 업로드를 위해 사진 보관함 접근 권한이 필요합니다.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
