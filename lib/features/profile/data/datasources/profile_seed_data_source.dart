@@ -48,8 +48,8 @@ class ProfileSeedDataSource {
         platform == TargetPlatform.android || platform == TargetPlatform.iOS;
     final showGoogleLogin = supportsSocialLogin;
     final showAppleLogin = platform == TargetPlatform.iOS;
-    final showNaverLogin = supportsSocialLogin;
-    final showKakaoLogin = supportsSocialLogin;
+    final showNaverLogin = false;
+    final showKakaoLogin = false;
 
     return ProfileLoginUiConfig(
       showGoogleLogin: showGoogleLogin,
@@ -57,7 +57,7 @@ class ProfileSeedDataSource {
       showNaverLogin: showNaverLogin,
       showKakaoLogin: showKakaoLogin,
       loginDescription:
-          'Android: Google + Naver + Kakao\niPhone: Google + Apple + Naver + Kakao',
+          'Android: Google\niPhone: Google + Apple',
     );
   }
 

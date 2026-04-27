@@ -206,7 +206,6 @@ class _CardCatalogScreenState extends State<CardCatalogScreen> {
             ],
           ),
         ),
-        _buildCardTabBanner(),
       ],
     );
   }
@@ -218,7 +217,7 @@ class _CardCatalogScreenState extends State<CardCatalogScreen> {
     return AppBannerAd(
       adUnitId: adUnitId,
       type: AppBannerAdType.inline,
-      margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      margin: const EdgeInsets.only(bottom: 12),
       debugLabel: 'cardCatalogInline',
     );
   }
@@ -232,6 +231,7 @@ class _CardCatalogScreenState extends State<CardCatalogScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 170),
         children: [
+          _buildCardTabBanner(),
           _ShareTextPanel(
             mode: mode,
             text: shareText,
