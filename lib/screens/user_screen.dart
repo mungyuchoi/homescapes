@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../features/community/data/repositories/community_category_repository.dart';
 import '../features/community/data/repositories/community_repository.dart';
 import '../features/community/services/community_service.dart';
 import '../features/profile/data/repositories/follow_repository.dart';
@@ -24,14 +25,10 @@ class _UserScreenState extends State<UserScreen> {
   final CommunityService _communityService = CommunityService(
     repository: CommunityRepositoryImpl(),
   );
+  final CommunityCategoryRepository _categoryRepository =
+      CommunityCategoryRepository();
 
-  static const List<String> _postCategories = <String>[
-    '전체',
-    '자유',
-    '궁금해요',
-    '오늘의 루트',
-    '꿀팁',
-  ];
+  List<CommunityCategory> _postCategories = CommunityCategory.defaults;
   static const DayFacilitySlotsDoc _emptyDaySlots = DayFacilitySlotsDoc(
     dayId: '',
     facilitySlots: <String, FacilitySlotsDoc>{},
@@ -66,6 +63,7 @@ class _UserScreenState extends State<UserScreen> {
     try {
       final firestore = FirebaseFirestore.instance;
       final userDocFuture = firestore.collection('users').doc(widget.uid).get();
+      final categoriesFuture = _categoryRepository.fetchCategories();
       final myAdminFuture = UserAccessUtils.isCurrentUserAdmin();
       final followerFuture = _followRepository.getFollowerCount(widget.uid);
       final followingFuture = _followRepository.getFollowingCount(widget.uid);
@@ -79,6 +77,7 @@ class _UserScreenState extends State<UserScreen> {
 
       final resolved = await Future.wait<dynamic>([
         userDocFuture,
+        categoriesFuture,
         myAdminFuture,
         followerFuture,
         followingFuture,
@@ -87,10 +86,11 @@ class _UserScreenState extends State<UserScreen> {
 
       final userSnapshot =
           resolved[0] as DocumentSnapshot<Map<String, dynamic>>;
-      final isViewerAdmin = resolved[1] as bool;
-      final followerCount = resolved[2] as int;
-      final followingCount = resolved[3] as int;
-      final postsSnapshot = resolved[4] as QuerySnapshot<Map<String, dynamic>>;
+      final categories = resolved[1] as List<CommunityCategory>;
+      final isViewerAdmin = resolved[2] as bool;
+      final followerCount = resolved[3] as int;
+      final followingCount = resolved[4] as int;
+      final postsSnapshot = resolved[5] as QuerySnapshot<Map<String, dynamic>>;
 
       final userData = userSnapshot.data() ?? const <String, dynamic>{};
       final displayName = (userData['displayName'] as String? ?? '').trim();
@@ -127,6 +127,7 @@ class _UserScreenState extends State<UserScreen> {
                   : (description.isNotEmpty ? description : '소개글이 없습니다.'));
         _followerCount = followerCount;
         _followingCount = followingCount;
+        _postCategories = categories;
         _posts = posts;
         _isLoading = false;
       });
@@ -154,9 +155,7 @@ class _UserScreenState extends State<UserScreen> {
       if (!mounted) return;
       setState(() => _isRestricted = next);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(next ? '이용금지 처리되었습니다.' : '이용금지 해제되었습니다.'),
-        ),
+        SnackBar(content: Text(next ? '이용금지 처리되었습니다.' : '이용금지 해제되었습니다.')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -364,12 +363,13 @@ class _UserScreenState extends State<UserScreen> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: _posts.length,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 8,
-                      mainAxisSpacing: 8,
-                      childAspectRatio: 1,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 1,
+                        ),
                     itemBuilder: (context, index) {
                       final item = _posts[index];
                       return _UserPostGridTile(
@@ -394,13 +394,17 @@ class _UserAvatar extends StatelessWidget {
     return CircleAvatar(
       radius: 30,
       backgroundColor: const Color(0xFFD1D7E1),
-      backgroundImage: (photoUrl.startsWith('http://') ||
-              photoUrl.startsWith('https://'))
+      backgroundImage:
+          (photoUrl.startsWith('http://') || photoUrl.startsWith('https://'))
           ? NetworkImage(photoUrl)
           : null,
       child: (photoUrl.startsWith('http://') || photoUrl.startsWith('https://'))
           ? null
-          : const Icon(Icons.person_rounded, color: Color(0xFF7E8798), size: 30),
+          : const Icon(
+              Icons.person_rounded,
+              color: Color(0xFF7E8798),
+              size: 30,
+            ),
     );
   }
 }

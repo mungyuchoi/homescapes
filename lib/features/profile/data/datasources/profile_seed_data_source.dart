@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../../../utils/profile_icon_assets.dart';
 import '../models/profile_models.dart';
 
 class ProfileSeedDataSource {
@@ -12,7 +13,7 @@ class ProfileSeedDataSource {
     final packageInfo = await PackageInfo.fromPlatform();
     final user = FirebaseAuth.instance.currentUser;
     final authName = (user?.displayName ?? '').trim();
-    final authPhoto = (user?.photoURL ?? '').trim();
+    final authPhoto = ProfileIconAssets.normalize(user?.photoURL);
     String firestoreName = '';
     String firestorePhoto = '';
     if (user != null) {
@@ -21,7 +22,9 @@ class ProfileSeedDataSource {
           .doc(user.uid)
           .get();
       firestoreName = (snapshot.data()?['displayName'] as String? ?? '').trim();
-      firestorePhoto = (snapshot.data()?['photoURL'] as String? ?? '').trim();
+      firestorePhoto = ProfileIconAssets.normalize(
+        snapshot.data()?['photoURL'] as String?,
+      );
     }
     final userName = firestoreName.isNotEmpty
         ? firestoreName

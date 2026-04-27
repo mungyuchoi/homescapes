@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../../../models/app_models.dart';
+import '../../../../utils/profile_icon_assets.dart';
 
 class CommunityPostRepository {
   CommunityPostRepository({
@@ -277,13 +278,17 @@ class CommunityPostRepository {
     }
 
     var displayName = (user.displayName ?? '').trim();
-    var photoURL = (user.photoURL ?? '').trim();
+    var photoURL = ProfileIconAssets.normalize(user.photoURL);
     try {
       final snapshot = await _firestore.collection('users').doc(user.uid).get();
       final data = snapshot.data();
       final firestoreName = (data?['displayName'] as String? ?? '').trim();
-      final firestorePhoto = (data?['photoURL'] as String? ?? '').trim();
-      final firestorePhotoLegacy = (data?['photoUrl'] as String? ?? '').trim();
+      final firestorePhoto = ProfileIconAssets.normalize(
+        data?['photoURL'] as String?,
+      );
+      final firestorePhotoLegacy = ProfileIconAssets.normalize(
+        data?['photoUrl'] as String?,
+      );
       if (firestoreName.isNotEmpty) displayName = firestoreName;
       if (firestorePhoto.isNotEmpty) {
         photoURL = firestorePhoto;

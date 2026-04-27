@@ -21,7 +21,7 @@ class FeedScreen extends StatelessWidget {
     required this.onRouteItemTap,
   });
 
-  final List<String> categories;
+  final List<CommunityCategory> categories;
   final String selectedCategory;
   final List<CommunityPost> posts;
   final ValueChanged<CommunityPost> onLikeTap;
@@ -32,21 +32,6 @@ class FeedScreen extends StatelessWidget {
   final ValueChanged<CommunityPost> onPostTap;
   final ValueChanged<CommunityPost> onAuthorTap;
   final ValueChanged<TodayRootItem> onRouteItemTap;
-
-  IconData _categoryIcon(String category) {
-    switch (category) {
-      case '자유':
-        return Icons.chat_bubble_outline_rounded;
-      case '궁금해요':
-        return Icons.help_outline_rounded;
-      case '오늘의 루트':
-        return Icons.route_rounded;
-      case '꿀팁':
-        return Icons.lightbulb_outline_rounded;
-      default:
-        return Icons.apps_rounded;
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +47,7 @@ class FeedScreen extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: categories.map((category) {
-                final selected = selectedCategory == category;
+                final selected = selectedCategory == category.label;
                 return Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: FilterChip(
@@ -81,7 +66,7 @@ class FeedScreen extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _categoryIcon(category),
+                          category.icon,
                           size: 16,
                           color: isDark
                               ? const Color(0xFF97A0B0)
@@ -89,7 +74,7 @@ class FeedScreen extends StatelessWidget {
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          category,
+                          category.label,
                           style: TextStyle(
                             color: selected
                                 ? Colors.white
@@ -102,7 +87,7 @@ class FeedScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    onSelected: (_) => onCategorySelected(category),
+                    onSelected: (_) => onCategorySelected(category.label),
                   ),
                 );
               }).toList(),
@@ -122,6 +107,9 @@ class FeedScreen extends StatelessWidget {
                   onTap: () => onPostTap(posts[index]),
                   onAuthorTap: () => onAuthorTap(posts[index]),
                   onRouteItemTap: onRouteItemTap,
+                  categories: categories
+                      .where((category) => category.label != '전체')
+                      .toList(),
                   likeCountOverride: likeCountByPostId(
                     posts[index].postId,
                     posts[index].likes,

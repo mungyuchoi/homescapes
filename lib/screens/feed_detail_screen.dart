@@ -10,6 +10,7 @@ import '../features/community/data/repositories/community_comment_repository.dar
 import '../features/community/data/repositories/community_like_repository.dart';
 import '../features/profile/data/repositories/follow_repository.dart';
 import '../models/app_models.dart';
+import '../utils/profile_icon_assets.dart';
 import '../utils/user_access_utils.dart';
 import '../widgets/common_widgets.dart';
 import 'post_create_screen.dart';
@@ -26,7 +27,7 @@ class FeedDetailScreen extends StatefulWidget {
   });
 
   final CommunityPost post;
-  final List<String> categories;
+  final List<CommunityCategory> categories;
   final List<SpotDoc> spotOptions;
   final DayFacilitySlotsDoc todaySlotsDoc;
 
@@ -154,7 +155,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
     if (user == null) return null;
 
     var displayName = (user.displayName ?? '').trim();
-    var photoURL = (user.photoURL ?? '').trim();
+    var photoURL = ProfileIconAssets.normalize(user.photoURL);
     try {
       final doc = await FirebaseFirestore.instance
           .collection('users')
@@ -162,7 +163,9 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
           .get();
       final data = doc.data();
       final firestoreName = (data?['displayName'] as String? ?? '').trim();
-      final firestorePhoto = (data?['photoURL'] as String? ?? '').trim();
+      final firestorePhoto = ProfileIconAssets.normalize(
+        data?['photoURL'] as String?,
+      );
 
       if (firestoreName.isNotEmpty) displayName = firestoreName;
       if (firestorePhoto.isNotEmpty) photoURL = firestorePhoto;
@@ -1180,6 +1183,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                           firestoreLikeCount ?? widget.post.likes,
                       commentCountOverride: comments.length,
                       imageUrls: postImageUrls,
+                      categories: widget.categories,
                     );
                   }
                   if (isMyPost) {
@@ -1204,6 +1208,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                               firestoreLikeCount ?? widget.post.likes,
                           commentCountOverride: comments.length,
                           imageUrls: postImageUrls,
+                          categories: widget.categories,
                         );
                       },
                     );
@@ -1237,6 +1242,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
                                 firestoreLikeCount ?? widget.post.likes,
                             commentCountOverride: comments.length,
                             imageUrls: postImageUrls,
+                            categories: widget.categories,
                           );
                         },
                       );
@@ -1617,14 +1623,19 @@ class _CommentTile extends StatelessWidget {
             children: [
               GestureDetector(
                 onTap: onAuthorTap,
-                child: CircleAvatar(
-                  radius: 14,
-                  backgroundImage: comment.author.photoURL != null
-                      ? NetworkImage(comment.author.photoURL!)
-                      : null,
-                  child: comment.author.photoURL == null
-                      ? const Icon(Icons.person, size: 16)
-                      : null,
+                child: Builder(
+                  builder: (context) {
+                    final authorImage = ProfileIconAssets.imageProvider(
+                      comment.author.photoURL,
+                    );
+                    return CircleAvatar(
+                      radius: 14,
+                      backgroundImage: authorImage,
+                      child: authorImage == null
+                          ? const Icon(Icons.person, size: 16)
+                          : null,
+                    );
+                  },
                 ),
               ),
               const SizedBox(width: 8),

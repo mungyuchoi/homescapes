@@ -4,6 +4,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../utils/profile_icon_assets.dart';
+
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
 
@@ -12,15 +14,7 @@ class ProfileEditScreen extends StatefulWidget {
 }
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
-  static const List<String> _presetPhotoUrls = [
-    'https://firebasestorage.googleapis.com/v0/b/jobworld-e3988.firebasestorage.app/o/icon%2Fblue_icon.png?alt=media&token=75bb29df-3779-4e07-8352-600911555f2f',
-    'https://firebasestorage.googleapis.com/v0/b/jobworld-e3988.firebasestorage.app/o/icon%2Fgreen_icon.png?alt=media&token=e15b38e6-931e-4a5f-b165-d6a4cfa3be5f',
-    'https://firebasestorage.googleapis.com/v0/b/jobworld-e3988.firebasestorage.app/o/icon%2Fnavy_icon.png?alt=media&token=2082a62e-a2a4-4692-a9d1-f72236f72169',
-    'https://firebasestorage.googleapis.com/v0/b/jobworld-e3988.firebasestorage.app/o/icon%2Forange_icon.png?alt=media&token=2157e85e-c5e9-483c-b88f-45fd056ca91d',
-    'https://firebasestorage.googleapis.com/v0/b/jobworld-e3988.firebasestorage.app/o/icon%2Fpurple_icon.png?alt=media&token=2aa260ef-7d66-40a4-baf7-9bea7156f90b',
-    'https://firebasestorage.googleapis.com/v0/b/jobworld-e3988.firebasestorage.app/o/icon%2Fred_icon.png?alt=media&token=c3cb763c-0004-4591-a3e5-afd8ec05f0c8',
-    'https://firebasestorage.googleapis.com/v0/b/jobworld-e3988.firebasestorage.app/o/icon%2Fyellow_icon.png?alt=media&token=bec70c50-efbc-4171-9205-5269f14370de',
-  ];
+  static const List<String> _presetPhotoUrls = ProfileIconAssets.presets;
 
   final TextEditingController _profileIdController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
@@ -34,7 +28,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   bool get _isCustomPhotoSelected =>
       _selectedPhotoUrl != null &&
-      !_presetPhotoUrls.contains(_selectedPhotoUrl);
+      !ProfileIconAssets.isPreset(_selectedPhotoUrl);
 
   @override
   void initState() {
@@ -67,9 +61,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       final data = snapshot.data();
       final firestoreName = _asString(data?['displayName']);
       final firestoreBio = _asString(data?['bio']);
-      final firestorePhoto = _asString(data?['photoURL']);
+      final firestorePhoto = ProfileIconAssets.normalize(
+        _asString(data?['photoURL']),
+      );
       final authName = (user.displayName ?? '').trim();
-      final authPhoto = (user.photoURL ?? '').trim();
+      final authPhoto = ProfileIconAssets.normalize(user.photoURL);
 
       final resolvedName = firestoreName.isNotEmpty
           ? firestoreName
@@ -158,8 +154,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       return;
     }
 
-    final photoUrl = (_selectedPhotoUrl ?? '').trim().isNotEmpty
-        ? (_selectedPhotoUrl ?? '').trim()
+    final selectedPhotoUrl = ProfileIconAssets.normalize(_selectedPhotoUrl);
+    final photoUrl = selectedPhotoUrl.isNotEmpty
+        ? selectedPhotoUrl
         : _presetPhotoUrls.first;
     final bio = _bioController.text.trim();
 
@@ -504,11 +501,9 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                                 onTap: () =>
                                     setState(() => _selectedPhotoUrl = url),
                                 child: ClipOval(
-                                  child: Image.network(
-                                    url,
-                                    width: 74,
-                                    height: 74,
-                                    fit: BoxFit.cover,
+                                  child: _ProfileImageAvatar(
+                                    photoUrl: url,
+                                    size: 74,
                                   ),
                                 ),
                               ),
@@ -585,18 +580,20 @@ class _ProfileImageAvatar extends StatelessWidget {
   }
 
   Widget _buildImage() {
-    if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
+    final normalizedPhotoUrl = ProfileIconAssets.normalize(photoUrl);
+    if (normalizedPhotoUrl.startsWith('http://') ||
+        normalizedPhotoUrl.startsWith('https://')) {
       return Image.network(
-        photoUrl,
+        normalizedPhotoUrl,
         width: size,
         height: size,
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) => _fallback(),
       );
     }
-    if (photoUrl.startsWith('assets/')) {
+    if (normalizedPhotoUrl.startsWith('assets/')) {
       return Image.asset(
-        photoUrl,
+        normalizedPhotoUrl,
         width: size,
         height: size,
         fit: BoxFit.cover,

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../models/app_models.dart';
+import '../../../../utils/profile_icon_assets.dart';
 
 class CommunityFirestoreDataSource {
   CommunityFirestoreDataSource({FirebaseFirestore? firestore})
@@ -75,9 +76,11 @@ class CommunityFirestoreDataSource {
         ? _string(authorMap['displayName'])
         : '익명';
     final authorUid = _string(authorMap['uid']);
-    final authorPhotoUrl = _string(authorMap['photoURL']).isNotEmpty
-        ? _string(authorMap['photoURL'])
-        : _string(authorMap['photoUrl']);
+    final authorPhotoUrl = ProfileIconAssets.normalize(
+      _string(authorMap['photoURL']).isNotEmpty
+          ? _string(authorMap['photoURL'])
+          : _string(authorMap['photoUrl']),
+    );
 
     final tags = _stringList(data['tags']);
     final category = _string(data['category']).isNotEmpty

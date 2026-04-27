@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../utils/profile_icon_assets.dart';
+
 typedef NotificationPayloadHandler =
     Future<void> Function(Map<String, String> payload);
 
@@ -259,7 +261,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         children: [
           const Spacer(flex: 7),
           Image.asset(
-            'assets/img/icon/gray_icon.png',
+            ProfileIconAssets.gray,
             width: 220,
             fit: BoxFit.contain,
             errorBuilder: (context, error, stackTrace) =>

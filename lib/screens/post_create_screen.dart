@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../features/community/data/repositories/community_post_repository.dart';
 import '../models/app_models.dart';
+import '../utils/profile_icon_assets.dart';
 import '../utils/user_access_utils.dart';
 
 class PostCreateScreen extends StatefulWidget {
@@ -20,7 +21,7 @@ class PostCreateScreen extends StatefulWidget {
   });
 
   final String initialCategory;
-  final List<String> categories;
+  final List<CommunityCategory> categories;
   final List<SpotDoc> spotOptions;
   final DayFacilitySlotsDoc todaySlotsDoc;
   final CommunityPost? editingPost;
@@ -51,12 +52,16 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
   Future<void> _loadAuthorProfile() async {
     final authUser = FirebaseAuth.instance.currentUser;
     final fallbackName = (authUser?.displayName ?? '').trim();
-    final fallbackPhoto = (authUser?.photoURL ?? '').trim();
+    final fallbackPhoto = ProfileIconAssets.normalize(authUser?.photoURL);
     String nextName = fallbackName;
     String nextPhoto = fallbackPhoto;
 
     if (nextName.isEmpty) {
-      final emailPrefix = (authUser?.email ?? '').trim().split('@').first.trim();
+      final emailPrefix = (authUser?.email ?? '')
+          .trim()
+          .split('@')
+          .first
+          .trim();
       if (emailPrefix.isNotEmpty) nextName = emailPrefix;
     }
     if (nextName.isEmpty) nextName = '익명';
@@ -71,8 +76,12 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
         final data = snapshot.data();
         if (data != null) {
           final firestoreName = (data['displayName'] as String? ?? '').trim();
-          final firestorePhotoUrl = (data['photoURL'] as String? ?? '').trim();
-          final firestorePhotoUrlLegacy = (data['photoUrl'] as String? ?? '').trim();
+          final firestorePhotoUrl = ProfileIconAssets.normalize(
+            data['photoURL'] as String?,
+          );
+          final firestorePhotoUrlLegacy = ProfileIconAssets.normalize(
+            data['photoUrl'] as String?,
+          );
           if (firestoreName.isNotEmpty) nextName = firestoreName;
           if (firestorePhotoUrl.isNotEmpty) {
             nextPhoto = firestorePhotoUrl;
@@ -104,7 +113,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
           : emailPrefix.isNotEmpty
           ? emailPrefix
           : '익명';
-      _authorPhotoUrl = (authUser.photoURL ?? '').trim();
+      _authorPhotoUrl = ProfileIconAssets.normalize(authUser.photoURL);
     } else {
       _authorName = '익명';
       _authorPhotoUrl = '';
@@ -172,7 +181,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
                     padding: const EdgeInsets.only(bottom: 10),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(20),
-                      onTap: () => Navigator.of(context).pop(category),
+                      onTap: () => Navigator.of(context).pop(category.label),
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
@@ -180,21 +189,18 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: _selectedCategory == category
+                            color: _selectedCategory == category.label
                                 ? const Color(0xFFED9A3A)
                                 : const Color(0xFFE2E5EC),
                           ),
                         ),
                         child: Row(
                           children: [
-                            Icon(
-                              _categoryIcon(category),
-                              color: const Color(0xFF4D5360),
-                            ),
+                            Icon(category.icon, color: const Color(0xFF4D5360)),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                category,
+                                category.label,
                                 style: const TextStyle(
                                   color: Color(0xFF1F2430),
                                   fontSize: 18,
@@ -602,7 +608,8 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     final options = <String>{};
     for (final doc in widget.todaySlotsDoc.facilitySlots.values) {
       final byId =
-          normalizedSpotId.isNotEmpty && doc.facilityId.trim() == normalizedSpotId;
+          normalizedSpotId.isNotEmpty &&
+          doc.facilityId.trim() == normalizedSpotId;
       final byName =
           normalizedName.isNotEmpty &&
           _normalize(doc.facilityName) == normalizedName;
@@ -706,10 +713,10 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
       Navigator.of(context).pop(created);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
-        SnackBar(content: Text(_isEditMode ? '게시글 수정 실패: $e' : '게시글 작성 실패: $e')),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_isEditMode ? '게시글 수정 실패: $e' : '게시글 작성 실패: $e'),
+        ),
       );
     } finally {
       if (mounted) {
@@ -728,21 +735,6 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     return '$hour:$minute';
   }
 
-  IconData _categoryIcon(String category) {
-    switch (category) {
-      case '자유':
-        return Icons.chat_bubble_outline_rounded;
-      case '궁금해요':
-        return Icons.help_outline_rounded;
-      case '오늘의 루트':
-        return Icons.route_rounded;
-      case '꿀팁':
-        return Icons.lightbulb_outline_rounded;
-      default:
-        return Icons.apps_rounded;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -752,7 +744,9 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          onPressed: _isSubmitting ? null : () => Navigator.of(context).maybePop(),
+          onPressed: _isSubmitting
+              ? null
+              : () => Navigator.of(context).maybePop(),
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
         ),
         title: Text(
@@ -791,471 +785,485 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: const Color(0xFFD9E2F0),
-                      backgroundImage: _authorPhotoUrl.isNotEmpty
-                          ? NetworkImage(_authorPhotoUrl)
-                          : null,
-                      child: _authorPhotoUrl.isEmpty
-                          ? const Icon(
-                              Icons.smart_toy_rounded,
-                              color: Color(0xFF5C88A7),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _authorName,
-                        style: const TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF1F2533),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                InkWell(
-                  onTap: _openCategorySheet,
-                  borderRadius: BorderRadius.circular(18),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 14,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: const Color(0xFFED9A3A),
-                        width: 1.6,
-                      ),
-                    ),
-                    child: Row(
+                    Row(
                       children: [
-                        Icon(
-                          _categoryIcon(_selectedCategory),
-                          color: const Color(0xFF5B616F),
+                        Builder(
+                          builder: (context) {
+                            final authorImage = ProfileIconAssets.imageProvider(
+                              _authorPhotoUrl,
+                            );
+                            return CircleAvatar(
+                              radius: 20,
+                              backgroundColor: const Color(0xFFD9E2F0),
+                              backgroundImage: authorImage,
+                              child: authorImage == null
+                                  ? const Icon(
+                                      Icons.smart_toy_rounded,
+                                      color: Color(0xFF5C88A7),
+                                    )
+                                  : null,
+                            );
+                          },
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            _selectedCategory,
+                            _authorName,
                             style: const TextStyle(
-                              color: Color(0xFF404552),
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF1F2533),
                             ),
                           ),
                         ),
-                        const Icon(
-                          Icons.expand_more_rounded,
-                          color: Color(0xFF737A89),
-                        ),
                       ],
                     ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _contentController,
-                  minLines: 7,
-                  maxLines: 12,
-                  style: const TextStyle(
-                    color: Color(0xFF2A2F3C),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    height: 1.35,
-                  ),
-                  decoration: const InputDecoration(
-                    hintText: '새로운 소식이 있나요?',
-                    hintStyle: TextStyle(
-                      color: Color(0xFF9BA2B0),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    border: InputBorder.none,
-                  ),
-                ),
-                if (_isRouteCategory) ...[
-                  const Divider(height: 24, color: Color(0xFFE3E7EE)),
-                  const Text(
-                    '오늘의 루트',
-                    style: TextStyle(
-                      color: Color(0xFF1F2533),
-                      fontWeight: FontWeight.w900,
-                      fontSize: 18,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ..._routeDraftItems.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final item = entry.value;
-                    final spotFloor = _spotFloorById(item.spotId);
-                    final timeOptions = _resolveTimeOptions(
-                      selectedSpotId: item.spotId,
-                      selectedSpotName: item.spotName,
-                    );
-
-                    return Container(
-                      width: double.infinity,
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEDEFF4),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                '루트 ${index + 1}',
-                                style: const TextStyle(
-                                  color: Color(0xFF343B4A),
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const Spacer(),
-                              if (_routeDraftItems.length > 1)
-                                IconButton(
-                                  onPressed: () => _removeRouteItem(index),
-                                  icon: const Icon(
-                                    Icons.remove_circle_outline_rounded,
-                                    color: Color(0xFF8A91A1),
-                                  ),
-                                  visualDensity: VisualDensity.compact,
-                                ),
-                            ],
+                    const SizedBox(height: 14),
+                    InkWell(
+                      onTap: _openCategorySheet,
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: const Color(0xFFED9A3A),
+                            width: 1.6,
                           ),
-                          const SizedBox(height: 4),
-                          InkWell(
-                            onTap: () async {
-                              final selected = await _openSpotPicker(
-                                selectedSpotId: item.spotId,
-                              );
-                              if (selected == null || !mounted) return;
-                              setState(() {
-                                item.spotId = selected.spotId;
-                                item.spotName = selected.title;
-                                final options = _resolveTimeOptions(
-                                  selectedSpotId: item.spotId,
-                                  selectedSpotName: item.spotName,
-                                );
-                                if (!options.contains(item.timeRange)) {
-                                  item.timeRange = '';
-                                }
-                              });
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 12,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              CommunityCategory.iconForLabel(
+                                _selectedCategory,
+                                categories: widget.categories,
                               ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: const Color(0xFFE0E5EE),
+                              color: const Color(0xFF5B616F),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _selectedCategory,
+                                style: const TextStyle(
+                                  color: Color(0xFF404552),
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
-                              child: Row(
+                            ),
+                            const Icon(
+                              Icons.expand_more_rounded,
+                              color: Color(0xFF737A89),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _contentController,
+                      minLines: 7,
+                      maxLines: 12,
+                      style: const TextStyle(
+                        color: Color(0xFF2A2F3C),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                      decoration: const InputDecoration(
+                        hintText: '새로운 소식이 있나요?',
+                        hintStyle: TextStyle(
+                          color: Color(0xFF9BA2B0),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        border: InputBorder.none,
+                      ),
+                    ),
+                    if (_isRouteCategory) ...[
+                      const Divider(height: 24, color: Color(0xFFE3E7EE)),
+                      const Text(
+                        '오늘의 루트',
+                        style: TextStyle(
+                          color: Color(0xFF1F2533),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ..._routeDraftItems.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final item = entry.value;
+                        final spotFloor = _spotFloorById(item.spotId);
+                        final timeOptions = _resolveTimeOptions(
+                          selectedSpotId: item.spotId,
+                          selectedSpotName: item.spotName,
+                        );
+
+                        return Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEDEFF4),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
                                 children: [
-                                  const Icon(
-                                    Icons.location_on_outlined,
-                                    color: Color(0xFF7B8497),
+                                  Text(
+                                    '루트 ${index + 1}',
+                                    style: const TextStyle(
+                                      color: Color(0xFF343B4A),
+                                      fontWeight: FontWeight.w900,
+                                    ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: item.spotName.trim().isEmpty
-                                        ? const Text(
-                                            '체험관 선택',
-                                            style: TextStyle(
-                                              color: Color(0xFF8F97A8),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          )
-                                        : Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                item.spotName,
+                                  const Spacer(),
+                                  if (_routeDraftItems.length > 1)
+                                    IconButton(
+                                      onPressed: () => _removeRouteItem(index),
+                                      icon: const Icon(
+                                        Icons.remove_circle_outline_rounded,
+                                        color: Color(0xFF8A91A1),
+                                      ),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              InkWell(
+                                onTap: () async {
+                                  final selected = await _openSpotPicker(
+                                    selectedSpotId: item.spotId,
+                                  );
+                                  if (selected == null || !mounted) return;
+                                  setState(() {
+                                    item.spotId = selected.spotId;
+                                    item.spotName = selected.title;
+                                    final options = _resolveTimeOptions(
+                                      selectedSpotId: item.spotId,
+                                      selectedSpotName: item.spotName,
+                                    );
+                                    if (!options.contains(item.timeRange)) {
+                                      item.timeRange = '';
+                                    }
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFFE0E5EE),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.location_on_outlined,
+                                        color: Color(0xFF7B8497),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: item.spotName.trim().isEmpty
+                                            ? const Text(
+                                                '체험관 선택',
+                                                style: TextStyle(
+                                                  color: Color(0xFF8F97A8),
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              )
+                                            : Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    item.spotName,
+                                                    style: const TextStyle(
+                                                      color: Color(0xFF1F2533),
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                    ),
+                                                  ),
+                                                  if (spotFloor.isNotEmpty) ...[
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      spotFloor,
+                                                      style: const TextStyle(
+                                                        color: Color(
+                                                          0xFF7A8294,
+                                                        ),
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ],
+                                              ),
+                                      ),
+                                      const Icon(
+                                        Icons.chevron_right_rounded,
+                                        color: Color(0xFF7B8497),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              InkWell(
+                                onTap: () async {
+                                  if (item.spotId.trim().isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('먼저 체험관을 선택해 주세요.'),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  if (timeOptions.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('선택 가능한 운영시간이 없습니다.'),
+                                      ),
+                                    );
+                                    return;
+                                  }
+                                  final selectedTime = await _openTimePicker(
+                                    options: timeOptions,
+                                    selectedTime: item.timeRange,
+                                    spotName: item.spotName,
+                                  );
+                                  if (selectedTime == null || !mounted) return;
+                                  setState(() => item.timeRange = selectedTime);
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: const Color(0xFFE0E5EE),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.schedule_rounded,
+                                        color: Color(0xFF7B8497),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: item.timeRange.trim().isEmpty
+                                            ? Text(
+                                                item.spotId.trim().isEmpty
+                                                    ? '먼저 체험관을 선택해 주세요.'
+                                                    : (timeOptions.isEmpty
+                                                          ? '선택 가능한 운영시간이 없습니다.'
+                                                          : '운영시간(회차) 선택'),
+                                                style: const TextStyle(
+                                                  color: Color(0xFF8F97A8),
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              )
+                                            : Text(
+                                                item.timeRange,
                                                 style: const TextStyle(
                                                   color: Color(0xFF1F2533),
                                                   fontWeight: FontWeight.w800,
                                                 ),
                                               ),
-                                              if (spotFloor.isNotEmpty) ...[
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  spotFloor,
-                                                  style: const TextStyle(
-                                                    color: Color(0xFF7A8294),
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
-                                          ),
+                                      ),
+                                      const Icon(
+                                        Icons.chevron_right_rounded,
+                                        color: Color(0xFF7B8497),
+                                      ),
+                                    ],
                                   ),
-                                  const Icon(
-                                    Icons.chevron_right_rounded,
-                                    color: Color(0xFF7B8497),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          InkWell(
-                            onTap: () async {
-                              if (item.spotId.trim().isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('먼저 체험관을 선택해 주세요.'),
-                                  ),
-                                );
-                                return;
-                              }
-                              if (timeOptions.isEmpty) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('선택 가능한 운영시간이 없습니다.'),
-                                  ),
-                                );
-                                return;
-                              }
-                              final selectedTime = await _openTimePicker(
-                                options: timeOptions,
-                                selectedTime: item.timeRange,
-                                spotName: item.spotName,
-                              );
-                              if (selectedTime == null || !mounted) return;
-                              setState(() => item.timeRange = selectedTime);
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: const Color(0xFFE0E5EE),
                                 ),
                               ),
-                              child: Row(
-                                children: [
-                                  const Icon(
-                                    Icons.schedule_rounded,
-                                    color: Color(0xFF7B8497),
+                              const SizedBox(height: 8),
+                              TextField(
+                                controller: item.noteController,
+                                maxLength: 30,
+                                decoration: InputDecoration(
+                                  hintText: '메모 (선택)',
+                                  counterText: '',
+                                  filled: true,
+                                  fillColor: Colors.white,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide.none,
                                   ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: item.timeRange.trim().isEmpty
-                                        ? Text(
-                                            item.spotId.trim().isEmpty
-                                                ? '먼저 체험관을 선택해 주세요.'
-                                                : (timeOptions.isEmpty
-                                                      ? '선택 가능한 운영시간이 없습니다.'
-                                                      : '운영시간(회차) 선택'),
-                                            style: const TextStyle(
-                                              color: Color(0xFF8F97A8),
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          )
-                                        : Text(
-                                            item.timeRange,
-                                            style: const TextStyle(
-                                              color: Color(0xFF1F2533),
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                  ),
-                                  const Icon(
-                                    Icons.chevron_right_rounded,
-                                    color: Color(0xFF7B8497),
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          TextField(
-                            controller: item.noteController,
-                            maxLength: 30,
-                            decoration: InputDecoration(
-                              hintText: '메모 (선택)',
-                              counterText: '',
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
+                        );
+                      }),
+                      OutlinedButton.icon(
+                        onPressed: _addRouteItem,
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFFCFD4DF)),
+                        ),
+                        icon: const Icon(
+                          Icons.add_circle_outline_rounded,
+                          size: 18,
+                        ),
+                        label: const Text(
+                          '루트 추가',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _isPickingImages ? null : _pickImages,
+                          icon: _isPickingImages
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.image_outlined),
+                          label: Text(
+                            '이미지 첨부 (${_selectedImages.length + _existingImageUrls.length}/$_maxImages)',
                           ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    if (_existingImageUrls.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 92,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _existingImageUrls.length,
+                          separatorBuilder: (_, index) =>
+                              const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            final imageUrl = _existingImageUrls[index];
+                            return Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(
+                                    imageUrl,
+                                    width: 92,
+                                    height: 92,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: InkWell(
+                                    onTap: () {
+                                      setState(() {
+                                        _existingImageUrls.removeAt(index);
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black54,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close_rounded,
+                                        size: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
                       ),
-                    );
-                  }),
-                  OutlinedButton.icon(
-                    onPressed: _addRouteItem,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFCFD4DF)),
-                    ),
-                    icon: const Icon(
-                      Icons.add_circle_outline_rounded,
-                      size: 18,
-                    ),
-                    label: const Text(
-                      '루트 추가',
-                      style: TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: _isPickingImages ? null : _pickImages,
-                      icon: _isPickingImages
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.image_outlined),
-                      label: Text(
-                        '이미지 첨부 (${_selectedImages.length + _existingImageUrls.length}/$_maxImages)',
+                    ],
+                    if (_selectedImages.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 92,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _selectedImages.length,
+                          separatorBuilder: (_, index) =>
+                              const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            final file = File(_selectedImages[index].path);
+                            return Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    file,
+                                    width: 92,
+                                    height: 92,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: InkWell(
+                                    onTap: () => _removeImageAt(index),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(3),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.black54,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close_rounded,
+                                        size: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
-                if (_existingImageUrls.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 92,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _existingImageUrls.length,
-                      separatorBuilder: (_, index) => const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        final imageUrl = _existingImageUrls[index];
-                        return Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                imageUrl,
-                                width: 92,
-                                height: 92,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            Positioned(
-                              right: 0,
-                              top: 0,
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _existingImageUrls.removeAt(index);
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.black54,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.close_rounded,
-                                    size: 14,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                ],
-                if (_selectedImages.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 92,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _selectedImages.length,
-                      separatorBuilder: (_, index) => const SizedBox(width: 8),
-                      itemBuilder: (context, index) {
-                        final file = File(_selectedImages[index].path);
-                        return Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.file(
-                                file,
-                                width: 92,
-                                height: 92,
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            Positioned(
-                              right: 0,
-                              top: 0,
-                              child: InkWell(
-                                onTap: () => _removeImageAt(index),
-                                child: Container(
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.black54,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.close_rounded,
-                                    size: 14,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                ],
-                ],
               ),
             ),
-          ),
           ),
           if (_isSubmitting)
             const Positioned.fill(
               child: ColoredBox(
                 color: Color(0x66000000),
                 child: Center(
-                  child: CircularProgressIndicator(
-                    color: Color(0xFFED9A3A),
-                  ),
+                  child: CircularProgressIndicator(color: Color(0xFFED9A3A)),
                 ),
               ),
             ),

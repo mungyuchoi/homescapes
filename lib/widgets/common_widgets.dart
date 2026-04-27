@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/app_models.dart';
+import '../utils/profile_icon_assets.dart';
 
 class AppTopHeader extends StatelessWidget {
   const AppTopHeader({
@@ -94,6 +95,7 @@ class PostCard extends StatelessWidget {
     this.commentCountOverride,
     this.likeCountOverride,
     this.imageUrls = const [],
+    this.categories = CommunityCategory.defaults,
   });
 
   final CommunityPost post;
@@ -109,21 +111,7 @@ class PostCard extends StatelessWidget {
   final int? commentCountOverride;
   final int? likeCountOverride;
   final List<String> imageUrls;
-
-  IconData _categoryIcon(String category) {
-    switch (category) {
-      case '자유':
-        return Icons.chat_bubble_outline_rounded;
-      case '궁금해요':
-        return Icons.help_outline_rounded;
-      case '오늘의 루트':
-        return Icons.route_rounded;
-      case '꿀팁':
-        return Icons.lightbulb_outline_rounded;
-      default:
-        return Icons.apps_rounded;
-    }
-  }
+  final List<CommunityCategory> categories;
 
   @override
   Widget build(BuildContext context) {
@@ -155,19 +143,23 @@ class PostCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 22,
-                          backgroundColor: const Color(0xFFD7EDFF),
-                          backgroundImage:
-                              (post.photoURL?.trim().isNotEmpty ?? false)
-                              ? NetworkImage(post.photoURL!.trim())
-                              : null,
-                          child: (post.photoURL?.trim().isNotEmpty ?? false)
-                              ? null
-                              : const Icon(
-                                  Icons.android,
-                                  color: Color(0xFF5C88A7),
-                                ),
+                        Builder(
+                          builder: (context) {
+                            final authorImage = ProfileIconAssets.imageProvider(
+                              post.photoURL,
+                            );
+                            return CircleAvatar(
+                              radius: 22,
+                              backgroundColor: const Color(0xFFD7EDFF),
+                              backgroundImage: authorImage,
+                              child: authorImage == null
+                                  ? const Icon(
+                                      Icons.android,
+                                      color: Color(0xFF5C88A7),
+                                    )
+                                  : null,
+                            );
+                          },
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -238,7 +230,10 @@ class PostCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      _categoryIcon(post.category),
+                      CommunityCategory.iconForLabel(
+                        post.category,
+                        categories: categories,
+                      ),
                       size: 14,
                       color: const Color(0xFF8A909D),
                     ),

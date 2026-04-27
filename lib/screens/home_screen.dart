@@ -22,6 +22,7 @@ import '../features/dialog_ads/presentation/widgets/dialog_ad_widget.dart';
 import '../features/dialog_ads/utils/dialog_ad_storage.dart';
 import '../models/app_models.dart';
 import '../utils/facility_helpers.dart';
+import '../utils/profile_icon_assets.dart';
 import '../utils/user_access_utils.dart';
 import '../widgets/common_widgets.dart';
 import 'feed_detail_screen.dart';
@@ -32,6 +33,7 @@ import 'search_screen.dart';
 import 'spot_detail_screen.dart';
 import 'notification_screen.dart';
 import 'user_screen.dart';
+import '../features/community/data/repositories/community_category_repository.dart';
 import '../features/community/data/repositories/community_repository.dart';
 import '../features/community/data/repositories/community_like_repository.dart';
 import '../features/community/services/community_service.dart';
@@ -60,61 +62,39 @@ class _HomeScreenState extends State<HomeScreen> {
     'COMMUNITY_POST_LIKE',
     'COMMUNITY_FOLLOWING_POST',
   };
-  static const List<String> _defaultProfileIconAssets = [
-    'https://firebasestorage.googleapis.com/v0/b/jobworld-e3988.firebasestorage.app/o/icon%2Fblue_icon.png?alt=media&token=75bb29df-3779-4e07-8352-600911555f2f',
-    'https://firebasestorage.googleapis.com/v0/b/jobworld-e3988.firebasestorage.app/o/icon%2Fgreen_icon.png?alt=media&token=e15b38e6-931e-4a5f-b165-d6a4cfa3be5f',
-    'https://firebasestorage.googleapis.com/v0/b/jobworld-e3988.firebasestorage.app/o/icon%2Fnavy_icon.png?alt=media&token=2082a62e-a2a4-4692-a9d1-f72236f72169',
-    'https://firebasestorage.googleapis.com/v0/b/jobworld-e3988.firebasestorage.app/o/icon%2Forange_icon.png?alt=media&token=2157e85e-c5e9-483c-b88f-45fd056ca91d',
-    'https://firebasestorage.googleapis.com/v0/b/jobworld-e3988.firebasestorage.app/o/icon%2Fpurple_icon.png?alt=media&token=2aa260ef-7d66-40a4-baf7-9bea7156f90b',
-    'https://firebasestorage.googleapis.com/v0/b/jobworld-e3988.firebasestorage.app/o/icon%2Fred_icon.png?alt=media&token=c3cb763c-0004-4591-a3e5-afd8ec05f0c8',
-    'https://firebasestorage.googleapis.com/v0/b/jobworld-e3988.firebasestorage.app/o/icon%2Fyellow_icon.png?alt=media&token=bec70c50-efbc-4171-9205-5269f14370de',
-  ];
+  static const List<String> _defaultProfileIconAssets =
+      ProfileIconAssets.presets;
   static const List<String> _positiveAdjectives = [
-    '멋진',
-    '힘쌘',
-    '용감한',
-    '밝은',
-    '친절한',
-    '튼튼한',
-    '슬기로운',
-    '든든한',
-    '재빠른',
-    '창의적인',
+    '대머리',
+    '수상한',
+    '엉뚱한',
+    '배고픈',
+    '졸린',
+    '느긋한',
+    '깜찍한',
+    '시끄러운',
+    '비장한',
+    '헐레벌떡',
+    '우당탕탕',
     '반짝이는',
-    '당찬',
-    '유쾌한',
-    '상냥한',
-    '기특한',
-    '씩씩한',
-    '유능한',
-    '똑똑한',
-    '꿈꾸는',
-    '열정적인',
+    '뻔뻔한',
+    '당황한',
+    '진지한',
+    '말랑한',
+    '쫄깃한',
+    '까칠한',
+    '해맑은',
+    '요란한',
+    '삐걱대는',
+    '눈치빠른',
+    '허둥대는',
+    '폼잡는',
+    '싱글벙글',
+    '꾸벅꾸벅',
+    '두리번대는',
+    '기세등등한',
   ];
-  static const List<String> _kidExperienceJobs = [
-    '소방수',
-    '경찰관',
-    '의사',
-    '간호사',
-    '요리사',
-    '제빵사',
-    '파일럿',
-    '기장',
-    '기관사',
-    '건축가',
-    '과학자',
-    '연구원',
-    '방송인',
-    '기상캐스터',
-    '승무원',
-    '정비사',
-    '판사',
-    '검사',
-    '기자',
-    '디자이너',
-  ];
-
-  final List<String> _categories = const [_allCategory, '자유', '궁금해요', '꿀팁'];
+  List<CommunityCategory> _categoryDefinitions = CommunityCategory.defaults;
 
   final SpotService _spotService = SpotService(
     repository: SpotRepositoryImpl(),
@@ -129,6 +109,8 @@ class _HomeScreenState extends State<HomeScreen> {
   );
   final CommunityLikeRepository _communityLikeRepository =
       CommunityLikeRepository();
+  final CommunityCategoryRepository _communityCategoryRepository =
+      CommunityCategoryRepository();
   final SocialCustomAuthService _socialCustomAuthService =
       SocialCustomAuthService();
   List<CommunityPost> _postsCollection = const [];
@@ -186,8 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final random = Random(uid.hashCode);
     final adjective =
         _positiveAdjectives[random.nextInt(_positiveAdjectives.length)];
-    final job = _kidExperienceJobs[random.nextInt(_kidExperienceJobs.length)];
-    return '$adjective$job';
+    return '${adjective}오스틴';
   }
 
   bool _isProviderPlaceholderName(String value) {
@@ -244,11 +225,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final existing = snapshot.data();
     final existingName = (existing?['displayName'] as String?)?.trim() ?? '';
     final existingEmail = (existing?['email'] as String?)?.trim() ?? '';
-    final existingPhotoUrl = (existing?['photoURL'] as String?)?.trim() ?? '';
+    final existingPhotoUrl = ProfileIconAssets.normalize(
+      existing?['photoURL'] as String?,
+    );
     final overrideName = displayNameOverride?.trim() ?? '';
     final overrideEmail = emailOverride?.trim() ?? '';
-    final overridePhotoUrl = photoUrlOverride?.trim() ?? '';
-    final providerPhotoUrl = user.photoURL?.trim() ?? '';
+    final overridePhotoUrl = ProfileIconAssets.normalize(photoUrlOverride);
+    final providerPhotoUrl = ProfileIconAssets.normalize(user.photoURL);
     final providerFromFirebase = user.providerData.isNotEmpty
         ? user.providerData.first.providerId
         : 'unknown';
@@ -353,6 +336,10 @@ class _HomeScreenState extends State<HomeScreen> {
         .toList();
   }
 
+  List<CommunityCategory> get _feedCategories {
+    return [CommunityCategory.all, ..._categoryDefinitions];
+  }
+
   String _normalizeSpotKey(String value) {
     return value.replaceAll(RegExp(r'\s+'), '').toLowerCase();
   }
@@ -414,6 +401,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final uid = _auth?.currentUser?.uid ?? 'guest_demo';
     try {
+      await _loadCommunityCategories();
+
       final cachedPosts = await _communityService.getCachedPosts(
         now: DateTime.now(),
         uid: uid,
@@ -438,6 +427,21 @@ class _HomeScreenState extends State<HomeScreen> {
         _isCommunityLoading = false;
       });
     }
+  }
+
+  Future<void> _loadCommunityCategories() async {
+    final categories = await _communityCategoryRepository.fetchCategories();
+    if (!mounted) return;
+
+    final hasSelectedCategory =
+        _selectedCategory == _allCategory ||
+        categories.any((category) => category.label == _selectedCategory);
+    setState(() {
+      _categoryDefinitions = categories;
+      if (!hasSelectedCategory) {
+        _selectedCategory = _allCategory;
+      }
+    });
   }
 
   Map<String, String> _normalizeNotificationPayload(
@@ -1029,23 +1033,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  List<String> get _postCategories {
-    return _categories.where((category) => category != _allCategory).toList();
-  }
-
-  IconData _postCategoryIcon(String category) {
-    switch (category) {
-      case '자유':
-        return Icons.chat_bubble_outline_rounded;
-      case '궁금해요':
-        return Icons.help_outline_rounded;
-      case '오늘의 루트':
-        return Icons.route_rounded;
-      case '꿀팁':
-        return Icons.lightbulb_outline_rounded;
-      default:
-        return Icons.apps_rounded;
-    }
+  List<CommunityCategory> get _postCategories {
+    return _categoryDefinitions;
   }
 
   Future<String?> _openPostCategorySheet() {
@@ -1079,7 +1068,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.only(bottom: 10),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(20),
-                      onTap: () => Navigator.of(context).pop(category),
+                      onTap: () => Navigator.of(context).pop(category.label),
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
@@ -1090,14 +1079,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         child: Row(
                           children: [
-                            Icon(
-                              _postCategoryIcon(category),
-                              color: const Color(0xFF4D5360),
-                            ),
+                            Icon(category.icon, color: const Color(0xFF4D5360)),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                category,
+                                category.label,
                                 style: const TextStyle(
                                   color: Color(0xFF1F2430),
                                   fontSize: 18,
@@ -1605,7 +1591,7 @@ class _HomeScreenState extends State<HomeScreen> {
       color: const Color(0xFFED9A3A),
       onRefresh: _loadCommunityData,
       child: FeedScreen(
-        categories: _categories,
+        categories: _feedCategories,
         selectedCategory: _selectedCategory,
         posts: _filteredPosts,
         onLikeTap: _togglePostLike,

@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../../utils/profile_icon_assets.dart';
+
 class CommunityCommentAuthor {
   const CommunityCommentAuthor({
     required this.uid,
@@ -15,7 +17,7 @@ class CommunityCommentAuthor {
     return CommunityCommentAuthor(
       uid: (data['uid'] as String? ?? '').trim(),
       displayName: (data['displayName'] as String? ?? '').trim(),
-      photoURL: (data['photoURL'] as String?)?.trim(),
+      photoURL: ProfileIconAssets.normalize(data['photoURL'] as String?),
     );
   }
 

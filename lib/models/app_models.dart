@@ -131,6 +131,89 @@ class FacilityMapNode {
   final double y;
 }
 
+class CommunityCategory {
+  const CommunityCategory({
+    required this.id,
+    required this.label,
+    required this.iconKey,
+    required this.order,
+  });
+
+  final String id;
+  final String label;
+  final String iconKey;
+  final int order;
+
+  static const all = CommunityCategory(
+    id: 'all',
+    label: '전체',
+    iconKey: 'apps',
+    order: -1,
+  );
+
+  static const defaults = [
+    CommunityCategory(id: 'free', label: '자유', iconKey: 'chat', order: 0),
+    CommunityCategory(id: 'question', label: '궁금해요', iconKey: 'help', order: 1),
+    CommunityCategory(id: 'tip', label: '꿀팁', iconKey: 'lightbulb', order: 2),
+    CommunityCategory(id: 'showoff', label: '자랑', iconKey: 'star', order: 3),
+  ];
+
+  IconData get icon {
+    switch (iconKey.trim().toLowerCase()) {
+      case 'chat':
+      case 'free':
+      case '자유':
+        return Icons.chat_bubble_outline_rounded;
+      case 'help':
+      case 'question':
+      case '궁금해요':
+        return Icons.help_outline_rounded;
+      case 'route':
+      case '오늘의 루트':
+        return Icons.route_rounded;
+      case 'lightbulb':
+      case 'tip':
+      case '꿀팁':
+        return Icons.lightbulb_outline_rounded;
+      case 'campaign':
+      case 'notice':
+        return Icons.campaign_outlined;
+      case 'star':
+      case 'showoff':
+      case '자랑':
+        return Icons.star_border_rounded;
+      default:
+        return Icons.apps_rounded;
+    }
+  }
+
+  static IconData iconForLabel(
+    String label, {
+    List<CommunityCategory> categories = defaults,
+  }) {
+    final normalized = label.trim();
+    for (final category in categories) {
+      if (category.label == normalized || category.id == normalized) {
+        return category.icon;
+      }
+    }
+    switch (normalized) {
+      case '자유':
+        return Icons.chat_bubble_outline_rounded;
+      case '궁금해요':
+        return Icons.help_outline_rounded;
+      case '오늘의 루트':
+        return Icons.route_rounded;
+      case '꿀팁':
+        return Icons.lightbulb_outline_rounded;
+      case '자랑':
+        return Icons.star_border_rounded;
+      default:
+        return Icons.apps_rounded;
+    }
+  }
+}
+
 class CommunityPost {
   CommunityPost({
     required this.postId,
