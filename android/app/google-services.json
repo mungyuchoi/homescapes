@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "80004535-bj880rrs140uiisha4903lcphaf6m0bg.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.mungyu.homescapes",
+            "certificate_hash": "8cb3525b4216fb2d54deb1b1c1d34e4028b2f031"
+          }
+        },
+        {
           "client_id": "80004535-h985850bt5q9sqv131qujl7en1klqmiv.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
