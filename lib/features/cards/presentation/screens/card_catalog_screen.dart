@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../utils/ad_utils.dart';
-import '../../../../widgets/app_banner_ad.dart';
 import '../../../../widgets/common_widgets.dart';
 import '../../data/models/card_catalog_models.dart';
 import '../../data/repositories/card_catalog_repository.dart';
@@ -211,15 +209,7 @@ class _CardCatalogScreenState extends State<CardCatalogScreen> {
   }
 
   Widget _buildCardTabBanner() {
-    final adUnitId = AdUtils.cardCatalogInlineBannerAdUnitId;
-    if (adUnitId == null) return const SizedBox.shrink();
-
-    return AppBannerAd(
-      adUnitId: adUnitId,
-      type: AppBannerAdType.inline,
-      margin: const EdgeInsets.only(bottom: 12),
-      debugLabel: 'cardCatalogInline',
-    );
+    return const SizedBox.shrink();
   }
 
   Widget _buildModePage(_CardShareMode mode, CardCatalogSeason season) {

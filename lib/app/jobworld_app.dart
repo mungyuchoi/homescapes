@@ -19,7 +19,7 @@ class _JobWorldAppState extends State<JobWorldApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Homescapes Helper',
+      title: '꿈의카드',
       themeMode: _themeMode,
       theme: ThemeData(
         useMaterial3: true,
@@ -42,9 +42,9 @@ class _JobWorldAppState extends State<JobWorldApp> {
           ),
         ),
         textTheme: ThemeData.light().textTheme.apply(
-              bodyColor: const Color(0xFF18181B),
-              displayColor: const Color(0xFF18181B),
-            ),
+          bodyColor: const Color(0xFF18181B),
+          displayColor: const Color(0xFF18181B),
+        ),
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
@@ -68,9 +68,9 @@ class _JobWorldAppState extends State<JobWorldApp> {
           ),
         ),
         textTheme: ThemeData.dark().textTheme.apply(
-              bodyColor: const Color(0xFFF2F4F8),
-              displayColor: const Color(0xFFF2F4F8),
-            ),
+          bodyColor: const Color(0xFFF2F4F8),
+          displayColor: const Color(0xFFF2F4F8),
+        ),
       ),
       home: HomeScreen(
         themeMode: _themeMode,

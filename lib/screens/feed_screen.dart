@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../models/app_models.dart';
-import '../utils/ad_utils.dart';
-import '../widgets/app_banner_ad.dart';
 import '../widgets/common_widgets.dart';
 
 class FeedScreen extends StatelessWidget {
@@ -116,16 +114,6 @@ class FeedScreen extends StatelessWidget {
                   ),
                   imageUrls: posts[index].imageUrls,
                 ),
-                if ((posts.length == 1 && index == 0) || index == 1) ...[
-                  const SizedBox(height: 10),
-                  AppBannerAd(
-                    adUnitId: AdUtils.communityFeedInlineBannerAdUnitId,
-                    type: AppBannerAdType.inline,
-                    margin: EdgeInsets.zero,
-                    debugLabel: 'communityFeedInline',
-                  ),
-                  const SizedBox(height: 10),
-                ],
               ],
             ],
           ),

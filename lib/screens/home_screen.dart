@@ -461,16 +461,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _initializeNotificationRouting() async {
-    try {
-      await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-    } catch (e) {
-      _logAuth('Notification permission request failed: $e');
-    }
-
     _onMessageOpenedSubscription?.cancel();
     _onMessageOpenedSubscription = FirebaseMessaging.onMessageOpenedApp.listen((
       message,
