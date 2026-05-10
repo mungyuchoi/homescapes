@@ -15,7 +15,10 @@ class _NoticeScreenState extends State<NoticeScreen> {
   bool _isAdmin = false;
 
   CollectionReference<Map<String, dynamic>> get _noticeCollection =>
-      FirebaseFirestore.instance.collection('meta').doc('notice').collection('notices');
+      FirebaseFirestore.instance
+          .collection('meta')
+          .doc('notice')
+          .collection('notices');
 
   @override
   void initState() {
@@ -28,7 +31,10 @@ class _NoticeScreenState extends State<NoticeScreen> {
     if (uid == null) return;
 
     try {
-      final snapshot = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
       final data = snapshot.data();
       final roles = data?['roles'];
       var isAdmin = false;
@@ -116,27 +122,37 @@ class _NoticeScreenState extends State<NoticeScreen> {
                             ? null
                             : () async {
                                 final title = titleController.text.trim();
-                                final descriptionHtml = descriptionHtmlController.text.trim();
+                                final descriptionHtml =
+                                    descriptionHtmlController.text.trim();
                                 if (title.isEmpty || descriptionHtml.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('제목과 descriptionHtml을 입력해 주세요.')),
+                                    const SnackBar(
+                                      content: Text(
+                                        '제목과 descriptionHtml을 입력해 주세요.',
+                                      ),
+                                    ),
                                   );
                                   return;
                                 }
 
                                 setLocalState(() => isSaving = true);
                                 try {
-                                  final uid = FirebaseAuth.instance.currentUser?.uid;
+                                  final uid =
+                                      FirebaseAuth.instance.currentUser?.uid;
                                   await _noticeCollection.add({
                                     'title': title,
                                     'descriptionHtml': descriptionHtml,
                                     'createdAt': FieldValue.serverTimestamp(),
                                     'createdByUid': uid,
                                   });
-                                  if (!mounted) return;
+                                  if (!mounted || !context.mounted) return;
                                   Navigator.of(context).pop();
-                                  ScaffoldMessenger.of(this.context).showSnackBar(
-                                    const SnackBar(content: Text('공지사항이 등록되었습니다.')),
+                                  ScaffoldMessenger.of(
+                                    this.context,
+                                  ).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('공지사항이 등록되었습니다.'),
+                                    ),
                                   );
                                 } finally {
                                   if (mounted) {
@@ -166,7 +182,10 @@ class _NoticeScreenState extends State<NoticeScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1A1D27)),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Color(0xFF1A1D27),
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: const Text(
@@ -188,7 +207,9 @@ class _NoticeScreenState extends State<NoticeScreen> {
         ],
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: _noticeCollection.orderBy('createdAt', descending: true).snapshots(),
+        stream: _noticeCollection
+            .orderBy('createdAt', descending: true)
+            .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.active &&
               snapshot.connectionState != ConnectionState.done) {
@@ -207,8 +228,9 @@ class _NoticeScreenState extends State<NoticeScreen> {
             );
           }
 
-          final notices =
-              (snapshot.data?.docs ?? const []).map(_NoticeItem.fromDoc).toList();
+          final notices = (snapshot.data?.docs ?? const [])
+              .map(_NoticeItem.fromDoc)
+              .toList();
           if (notices.isEmpty) {
             return const Center(
               child: Text(
@@ -224,7 +246,7 @@ class _NoticeScreenState extends State<NoticeScreen> {
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 30),
             itemCount: notices.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final notice = notices[index];
               final expanded = _expandedIds.contains(notice.id);
@@ -259,7 +281,8 @@ class _NoticeScreenState extends State<NoticeScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          if (expanded && notice.descriptionHtml.trim().isNotEmpty) ...[
+                          if (expanded &&
+                              notice.descriptionHtml.trim().isNotEmpty) ...[
                             const SizedBox(height: 18),
                             HtmlWidget(
                               notice.descriptionHtml,
@@ -280,7 +303,9 @@ class _NoticeScreenState extends State<NoticeScreen> {
                       color: Color(0xFFE1E4EA),
                     ),
                     InkWell(
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                      borderRadius: const BorderRadius.vertical(
+                        bottom: Radius.circular(24),
+                      ),
                       onTap: () {
                         setState(() {
                           if (expanded) {

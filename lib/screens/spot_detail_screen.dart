@@ -444,9 +444,9 @@ class _SpotChatTabState extends State<_SpotChatTab> {
     final isRestricted = await UserAccessUtils.isCurrentUserRestricted();
     if (!isRestricted) return true;
     if (!mounted) return false;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('이용금지된 회원입니다. 관리자에게 문의하세요.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('이용금지된 회원입니다. 관리자에게 문의하세요.')));
     return false;
   }
 
@@ -463,7 +463,7 @@ class _SpotChatTabState extends State<_SpotChatTab> {
     }
     final uid = user.uid;
     final userName = (user.displayName?.trim().isNotEmpty ?? false)
-        ? user!.displayName!.trim()
+        ? user.displayName!.trim()
         : '게스트';
 
     try {
@@ -635,7 +635,7 @@ class _SpotChatTabState extends State<_SpotChatTab> {
                       return;
                     }
                     final allowed = await _ensureCanWrite();
-                    if (!allowed && mounted) {
+                    if (!allowed && context.mounted) {
                       FocusScope.of(context).unfocus();
                     }
                   },

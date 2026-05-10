@@ -663,8 +663,8 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
       return;
     }
     final isRestricted = await UserAccessUtils.isCurrentUserRestricted();
+    if (!mounted) return;
     if (isRestricted) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('이용금지된 회원입니다. 관리자에게 문의하세요.')),
       );

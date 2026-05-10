@@ -13,6 +13,7 @@ import 'follow_list_screen.dart';
 import 'notification_screen.dart';
 import 'notice_screen.dart';
 import 'profile_edit_screen.dart';
+import 'terms_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
@@ -72,6 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _followingCount = 0;
   List<_MyPostGridItem> _myPosts = const <_MyPostGridItem>[];
   bool _isAdminUser = false;
+  bool _hasAcceptedTerms = false;
 
   @override
   void initState() {
@@ -84,6 +86,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isSignedIn != widget.isSignedIn ||
         oldWidget.isAuthInitializing != widget.isAuthInitializing) {
+      if (!widget.isSignedIn) {
+        _hasAcceptedTerms = false;
+      }
       _loadProfileData();
     }
   }
@@ -167,6 +172,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           MaterialPageRoute<void>(builder: (_) => const _BlockedUsersPage()),
         );
         break;
+      case '서비스 이용 동의':
+      case '이용약관':
+        _openTerms();
+        break;
+      case '고객센터':
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const NotificationScreen.inquiry(),
+          ),
+        );
+        break;
       case '알림 설정':
         Navigator.of(context).push(
           MaterialPageRoute<void>(builder: (_) => const NotificationScreen()),
@@ -197,6 +213,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           context,
         ).showSnackBar(SnackBar(content: Text('$label 준비 중입니다.')));
     }
+  }
+
+  Future<void> _openTerms() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const TermsScreen()));
   }
 
   Future<void> _openProfileEdit() async {
@@ -365,10 +387,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     if (!widget.isSignedIn) {
+      final canStartLogin = !widget.isAuthLoading && _hasAcceptedTerms;
       return Container(
         color: const Color(0xFFF0F1F5),
-        padding: const EdgeInsets.fromLTRB(20, 30, 20, 0),
-        child: Column(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 30, 20, 120),
           children: [
             const Text(
               '로그인 후\n프로필을 시작하세요',
@@ -379,10 +402,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 height: 1.15,
               ),
             ),
-            const SizedBox(height: 26),
+            const SizedBox(height: 20),
+            _TermsAgreementCard(
+              accepted: _hasAcceptedTerms,
+              onChanged: widget.isAuthLoading
+                  ? null
+                  : (value) {
+                      setState(() => _hasAcceptedTerms = value);
+                    },
+              onOpenTerms: _openTerms,
+            ),
+            const SizedBox(height: 20),
             if (_loginUiConfig!.showGoogleLogin)
               LoginImageButton(
-                onTap: widget.isAuthLoading ? null : widget.onGoogleLogin,
+                onTap: canStartLogin ? widget.onGoogleLogin : null,
                 assetPath: Theme.of(context).brightness == Brightness.dark
                     ? 'assets/img/google_login/google_login_dark.png'
                     : 'assets/img/google_login/google_login_light.png',
@@ -390,7 +423,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (_loginUiConfig!.showAppleLogin) ...[
               const SizedBox(height: 12),
               LoginImageButton(
-                onTap: widget.isAuthLoading ? null : widget.onAppleLogin,
+                onTap: canStartLogin ? widget.onAppleLogin : null,
                 assetPath: Theme.of(context).brightness == Brightness.dark
                     ? 'assets/img/apple_login/apple_login_dark.png'
                     : 'assets/img/apple_login/apple_login_light.png',
@@ -399,7 +432,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (_loginUiConfig!.showNaverLogin) ...[
               const SizedBox(height: 12),
               LoginImageButton(
-                onTap: widget.isAuthLoading ? null : widget.onNaverLogin,
+                onTap: canStartLogin ? widget.onNaverLogin : null,
                 assetPath: Theme.of(context).brightness == Brightness.dark
                     ? 'assets/img/naver_login/NAVER_login_Dark_EN_white_center_H56.png'
                     : 'assets/img/naver_login/NAVER_login_Light_EN_green_center_H56.png',
@@ -411,7 +444,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (_loginUiConfig!.showKakaoLogin) ...[
               const SizedBox(height: 12),
               LoginImageButton(
-                onTap: widget.isAuthLoading ? null : widget.onKakaoLogin,
+                onTap: canStartLogin ? widget.onKakaoLogin : null,
                 assetPath: 'assets/img/kakao_login/kakao_login.png',
                 width: 208,
                 borderRadius: 22,
@@ -928,6 +961,86 @@ class _ProfileSettingSection extends StatelessWidget {
               ),
             )
             .toList(),
+      ),
+    );
+  }
+}
+
+class _TermsAgreementCard extends StatelessWidget {
+  const _TermsAgreementCard({
+    required this.accepted,
+    required this.onChanged,
+    required this.onOpenTerms,
+  });
+
+  final bool accepted;
+  final ValueChanged<bool>? onChanged;
+  final VoidCallback onOpenTerms;
+
+  @override
+  Widget build(BuildContext context) {
+    final disabled = onChanged == null;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE3E6EE)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Checkbox(
+            value: accepted,
+            onChanged: disabled
+                ? null
+                : (value) => onChanged?.call(value ?? false),
+            activeColor: const Color(0xFFED9A3A),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '이용약관과 커뮤니티 규칙에 동의합니다.',
+                  style: TextStyle(
+                    color: Color(0xFF252A35),
+                    fontWeight: FontWeight.w900,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  '신고, 차단, objectionable content 및 abusive users 무관용 정책을 확인해야 로그인할 수 있습니다.',
+                  style: TextStyle(
+                    color: Color(0xFF6F7687),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: onOpenTerms,
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFED9A3A),
+                      padding: EdgeInsets.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      '이용약관 보기',
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

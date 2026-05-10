@@ -31,6 +31,7 @@ import 'post_create_screen.dart';
 import 'profile_screen.dart';
 import 'search_screen.dart';
 import 'spot_detail_screen.dart';
+import 'terms_screen.dart';
 import 'notification_screen.dart';
 import 'user_screen.dart';
 import '../features/community/data/repositories/community_category_repository.dart';
@@ -168,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final random = Random(uid.hashCode);
     final adjective =
         _positiveAdjectives[random.nextInt(_positiveAdjectives.length)];
-    return '${adjective}오스틴';
+    return '$adjective오스틴';
   }
 
   bool _isProviderPlaceholderName(String value) {
@@ -273,6 +274,9 @@ class _HomeScreenState extends State<HomeScreen> {
         'provider': resolvedProviderId,
         if (resolvedProviderUid.isNotEmpty) 'providerUid': resolvedProviderUid,
         'roles': const ['user'],
+        'termsAccepted': true,
+        'termsVersion': AppTerms.version,
+        'termsAcceptedAt': FieldValue.serverTimestamp(),
         'createdAt': FieldValue.serverTimestamp(),
         'lastLoginAt': FieldValue.serverTimestamp(),
       });
@@ -282,6 +286,9 @@ class _HomeScreenState extends State<HomeScreen> {
         'photoURL': resolvedPhotoUrl,
         'provider': resolvedProviderId,
         if (resolvedProviderUid.isNotEmpty) 'providerUid': resolvedProviderUid,
+        'termsAccepted': true,
+        'termsVersion': AppTerms.version,
+        'termsAcceptedAt': FieldValue.serverTimestamp(),
         'lastLoginAt': FieldValue.serverTimestamp(),
         if (existingName.isEmpty ||
             isExistingPlaceholder ||

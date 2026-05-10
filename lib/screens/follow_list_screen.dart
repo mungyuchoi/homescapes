@@ -123,9 +123,7 @@ class _FollowListScreenState extends State<FollowListScreen> {
               Expanded(
                 child: Center(
                   child: Text(
-                    _selectedTabIndex == 0
-                        ? '팔로워가 없습니다.'
-                        : '팔로잉이 없습니다.',
+                    _selectedTabIndex == 0 ? '팔로워가 없습니다.' : '팔로잉이 없습니다.',
                     style: TextStyle(
                       color: isDark
                           ? const Color(0xFFB8C1D1)
@@ -140,7 +138,8 @@ class _FollowListScreenState extends State<FollowListScreen> {
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                   itemCount: list.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 8),
                   itemBuilder: (context, index) {
                     final user = list[index];
                     return Container(
@@ -265,7 +264,9 @@ class _FollowAvatar extends StatelessWidget {
     return CircleAvatar(
       radius: 20,
       backgroundColor: const Color(0xFFDCE2EC),
-      backgroundImage: photoUrl.startsWith('http') ? NetworkImage(photoUrl) : null,
+      backgroundImage: photoUrl.startsWith('http')
+          ? NetworkImage(photoUrl)
+          : null,
       child: photoUrl.startsWith('http')
           ? null
           : const Icon(Icons.smart_toy_rounded, color: Color(0xFF8C96AA)),

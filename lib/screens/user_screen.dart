@@ -27,6 +27,12 @@ class _UserScreenState extends State<UserScreen> {
   );
   final CommunityCategoryRepository _categoryRepository =
       CommunityCategoryRepository();
+  static const List<({String code, String label})> _userReportReasons = [
+    (code: 'spam', label: '스팸 또는 허위 활동이에요'),
+    (code: 'abusive', label: '불쾌하거나 괴롭히는 사용자예요'),
+    (code: 'impersonation', label: '다른 사람을 사칭하고 있어요'),
+    (code: 'other', label: '다른 문제가 있어요'),
+  ];
 
   List<CommunityCategory> _postCategories = CommunityCategory.defaults;
   static const DayFacilitySlotsDoc _emptyDaySlots = DayFacilitySlotsDoc(
@@ -39,6 +45,8 @@ class _UserScreenState extends State<UserScreen> {
   bool _isViewerAdmin = false;
   bool _isRestricted = false;
   bool _isTogglingRestriction = false;
+  bool _isBlockingUser = false;
+  bool _isReportingUser = false;
   String _displayName = '';
   String _photoUrl = '';
   String _bio = '';
@@ -165,6 +173,304 @@ class _UserScreenState extends State<UserScreen> {
     } finally {
       if (mounted) {
         setState(() => _isTogglingRestriction = false);
+      }
+    }
+  }
+
+  Future<void> _showBlockUserDialog() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인 후 이용해주세요.')));
+      return;
+    }
+    if (currentUser.uid == widget.uid) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('본인은 차단할 수 없습니다.')));
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: !_isBlockingUser,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('사용자를 차단할까요?'),
+          content: Text(
+            '$_displayName님의 게시글과 댓글이 내 화면에서 가려집니다.\n차단은 [설정 > 차단 내역 관리]에서 해제할 수 있습니다.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: _isBlockingUser
+                  ? null
+                  : () => Navigator.of(context).pop(false),
+              child: const Text('취소'),
+            ),
+            FilledButton(
+              onPressed: _isBlockingUser
+                  ? null
+                  : () => Navigator.of(context).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFE95353),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('차단하기'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await _blockUser();
+    }
+  }
+
+  Future<void> _blockUser() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+    if (_isBlockingUser) return;
+
+    setState(() => _isBlockingUser = true);
+    try {
+      final blockedUsersRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('blocked_users');
+      final docRef = blockedUsersRef.doc(widget.uid);
+      final existing = await docRef.get();
+      if (!existing.exists) {
+        final blockedSnapshot = await blockedUsersRef.limit(4).get();
+        if (blockedSnapshot.docs.length >= 3) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('차단은 최대 3명까지 가능합니다.')));
+          return;
+        }
+      }
+
+      await docRef.set({
+        'blockedUid': widget.uid,
+        'blockedAuthor': _displayName,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (!mounted) return;
+      setState(() => _posts = const <_UserPostGridItem>[]);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('차단되었습니다.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('차단 처리 실패: $e')));
+    } finally {
+      if (mounted) {
+        setState(() => _isBlockingUser = false);
+      }
+    }
+  }
+
+  Future<void> _showUserReportSheet() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('로그인 후 신고할 수 있습니다.')));
+      return;
+    }
+    if (currentUser.uid == widget.uid) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('본인은 신고할 수 없습니다.')));
+      return;
+    }
+
+    var selectedCode = _userReportReasons.first.code;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 38,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD9DEE8),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      '사용자 신고하기',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    ..._userReportReasons.map((reason) {
+                      final selected = selectedCode == reason.code;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: InkWell(
+                          onTap: () =>
+                              setModalState(() => selectedCode = reason.code),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? const Color(0xFFFFF1DF)
+                                  : const Color(0xFFF7F9FC),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: selected
+                                    ? const Color(0xFFED9A3A)
+                                    : const Color(0xFFE2E7EF),
+                              ),
+                            ),
+                            child: Text(
+                              reason.label,
+                              style: const TextStyle(
+                                color: Color(0xFF283043),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 4),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _isReportingUser
+                            ? null
+                            : () async {
+                                final reason = _userReportReasons.firstWhere(
+                                  (it) => it.code == selectedCode,
+                                );
+                                await _submitUserReport(
+                                  reasonCode: reason.code,
+                                  reasonLabel: reason.label,
+                                );
+                                if (context.mounted) {
+                                  Navigator.of(context).pop();
+                                }
+                              },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFFED9A3A),
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(_isReportingUser ? '신고 중...' : '신고하기'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _submitUserReport({
+    required String reasonCode,
+    required String reasonLabel,
+  }) async {
+    final reporter = FirebaseAuth.instance.currentUser;
+    if (reporter == null || _isReportingUser) return;
+
+    setState(() => _isReportingUser = true);
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final reportId = firestore
+          .collection('meta')
+          .doc('reports')
+          .collection('users')
+          .doc()
+          .id;
+      final payload = <String, dynamic>{
+        'reportId': reportId,
+        'targetType': 'user',
+        'targetId': widget.uid,
+        'targetAuthorUid': widget.uid,
+        'targetAuthorName': _displayName,
+        'reporterUid': reporter.uid,
+        'reasonCode': reasonCode,
+        'reasonLabel': reasonLabel,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      final batch = firestore.batch();
+      batch.set(
+        firestore
+            .collection('meta')
+            .doc('reports')
+            .collection('users')
+            .doc(reportId),
+        payload,
+      );
+      batch.set(
+        firestore
+            .collection('users')
+            .doc(reporter.uid)
+            .collection('reports_users')
+            .doc(reportId),
+        payload,
+      );
+      batch.set(firestore.collection('users').doc(widget.uid), {
+        'reportsCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      await batch.commit();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('신고가 접수되었습니다.')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('신고 처리 실패: $e')));
+    } finally {
+      if (mounted) {
+        setState(() => _isReportingUser = false);
       }
     }
   }
@@ -320,6 +626,48 @@ class _UserScreenState extends State<UserScreen> {
                     ],
                   ),
                 ),
+                if (_viewerUid != widget.uid) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _isReportingUser
+                              ? null
+                              : _showUserReportSheet,
+                          icon: const Icon(Icons.report_gmailerrorred_rounded),
+                          label: Text(_isReportingUser ? '신고 중' : '신고'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFFE95353),
+                            side: const BorderSide(color: Color(0xFFE95353)),
+                            minimumSize: const Size.fromHeight(44),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: _isBlockingUser
+                              ? null
+                              : _showBlockUserDialog,
+                          icon: const Icon(Icons.person_off_outlined),
+                          label: Text(_isBlockingUser ? '처리중' : '차단'),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF5F6B82),
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size.fromHeight(44),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -487,7 +835,7 @@ class _UserPostGridTile extends StatelessWidget {
                 child: Image.network(
                   item.thumbnailUrl,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _fallback(),
+                  errorBuilder: (context, error, stackTrace) => _fallback(),
                 ),
               )
             : _fallback(),

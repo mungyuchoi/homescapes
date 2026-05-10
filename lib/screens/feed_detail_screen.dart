@@ -299,6 +299,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
 
   Future<void> _openPostActionSheet() async {
     if (!await _ensureCanWrite()) return;
+    if (!mounted) return;
     final isMyPost = FirebaseAuth.instance.currentUser?.uid == widget.post.uid;
     await showModalBottomSheet<void>(
       context: context,
@@ -377,6 +378,7 @@ class _FeedDetailScreenState extends State<FeedDetailScreen> {
 
   Future<void> _openCommentActionSheet(CommunityComment comment) async {
     if (!await _ensureCanWrite()) return;
+    if (!mounted) return;
     final currentUid = FirebaseAuth.instance.currentUser?.uid;
     if (currentUid == null) {
       return;
